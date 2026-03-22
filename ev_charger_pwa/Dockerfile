@@ -6,7 +6,9 @@ RUN apk add --no-cache python3 py3-pip gcc musl-dev python3-dev
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --break-system-packages -r requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt \
+    && uvicorn --version \
+    && which uvicorn
 
 COPY main.py .
 COPY pwa/ ./pwa/

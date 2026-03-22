@@ -18,4 +18,4 @@ bashio::log.info "Config chargée. Switch: ${SWITCH_ENTITY}"
 bashio::log.info "Tarifs HP: ${TARIF_HP}€ / HC: ${TARIF_HC}€"
 
 cd /app
-exec /app/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8765 --workers 1
+exec uvicorn main:app --host 0.0.0.0 --port 8765 --workers 1
