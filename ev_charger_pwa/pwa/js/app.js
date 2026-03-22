@@ -192,6 +192,7 @@ function renderChart() {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
+      resizeDelay: 0,
       plugins: { legend: { display: false }, tooltip: {
         backgroundColor: '#1a2340',
         titleColor: '#8899bb',
