@@ -1,18 +1,18 @@
 ---
 name: "EV Charger PWA"
-description: "PWA de gestion de recharge voiture électrique avec sessions HP/HC"
+description: "PWA de gestion recharge voiture - Sessions HP/HC"
 version: "1.0.0"
 slug: "ev_charger_pwa"
 init: false
-homeassistant_api: true
-hassio_api: true
-hassio_role: default
-auth_api: true
-ingress: false
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - armhf
 ports:
   8765/tcp: 8765
 ports_description:
-  8765/tcp: "FastAPI + PWA server"
+  8765/tcp: "FastAPI + PWA"
 map:
   - data:rw
 options:
@@ -23,8 +23,8 @@ options:
   energy_sensor: "sensor.energy_voiture"
   tarif_hp: 0.2516
   tarif_hc: 0.1654
-  hc_start: "23:00"
-  hc_end: "07:00"
+  hc_start: "22:00"
+  hc_end: "06:00"
   notification_threshold_kw: 0.1
 schema:
   ha_token: str
