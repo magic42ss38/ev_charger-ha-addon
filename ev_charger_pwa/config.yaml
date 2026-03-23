@@ -1,7 +1,7 @@
 ---
 name: "EV Charger PWA"
 description: "PWA de gestion recharge voiture - Sessions HP/HC"
-version: "1.0.2"
+version: "1.0.3"
 slug: "ev_charger_pwa"
 init: false
 arch:
@@ -23,8 +23,8 @@ options:
   energy_sensor: "sensor.energy_voiture"
   tarif_hp: 0.2516
   tarif_hc: 0.1654
-  hc_start: "22:00"
-  hc_end: "06:00"
+  hc_start: "23:00"
+  hc_end: "07:00"
   notification_threshold_kw: 0.1
 schema:
   ha_token: str

@@ -404,7 +404,7 @@ async def start_watchdog():
 
 
 # ─── PWA Static files ─────────────────────────────────────────────────────────
-app.mount("/pwa", StaticFiles(directory="/app/pwa", html=True), name="pwa")
+app.mount("/", StaticFiles(directory="/app/pwa", html=True), name="pwa")
 
 @app.get("/")
 async def root():

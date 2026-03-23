@@ -392,7 +392,7 @@ async function init() {
   // Register SW
   if ('serviceWorker' in navigator) {
     try {
-      const reg = await navigator.serviceWorker.register('/pwa/sw.js', { scope: '/pwa/' });
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       console.log('SW registered:', reg.scope);
     } catch (e) {
       console.warn('SW registration failed:', e);
