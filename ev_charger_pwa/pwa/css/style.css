@@ -1,5 +1,5 @@
 /* EV Charger PWA - Style industriel électrique */
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.bunny.net/css?family=rajdhani:400,500,600,700|jetbrains-mono:400,500&display=swap');
 
 /* ─── Variables ─────────────────────────────────────────────────────────────── */
 :root {
@@ -17,8 +17,8 @@
   --text:      #e8eef8;
   --text-2:    #8899bb;
   --text-3:    #4a5878;
-  --font:      'Rajdhani', sans-serif;
-  --mono:      'JetBrains Mono', monospace;
+  --font:      'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+  --mono:      'JetBrains Mono', 'Consolas', 'Courier New', monospace;
   --r:         12px;
   --r-sm:      6px;
 }
