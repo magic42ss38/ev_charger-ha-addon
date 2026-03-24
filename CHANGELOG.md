@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+- bug navigation between pages
+- - change icons (appli + HA addon)
+## 2.0.0
+- New interface / new authentication
+- bug correction
 ## 1.0.6
 - Still debug for PWA access (modif index.html)
 - add changelog

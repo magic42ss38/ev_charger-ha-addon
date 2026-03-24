@@ -216,8 +216,32 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="EV Charger API v2", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"],
-    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Middleware pour les headers proxy (NPM + Cloudflare)
+from starlette.middleware.base import BaseHTTPMiddleware
+class ProxyHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Reconstruire le scheme depuis X-Forwarded-Proto
+        proto = request.headers.get("x-forwarded-proto")
+        if proto:
+            request.scope["scheme"] = proto
+        return await call_next(request)
+app.add_middleware(ProxyHeadersMiddleware)
+# Origins autorisées — ajouter ici si domaine change
+ALLOWED_ORIGINS = [
+    "https://pwa.domotique-nicof73.ovh",
+    "https://ha.domotique-nicof73.ovh",
+    "http://localhost:8765",
+    "http://127.0.0.1:8765",
+    "http://192.168.1.102:8765",
+]
+app.add_middleware(CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Set-Cookie"],
+)
 
 # ─── Models ───────────────────────────────────────────────────────────────────
 class TarifConfig(BaseModel):
@@ -252,7 +276,8 @@ async def auth_login(request: Request):
     )
     url = f"{HA_URL}/auth/authorize?{params}"
     response = RedirectResponse(url)
-    response.set_cookie("oauth_state", state, max_age=300, httponly=True, samesite="lax")
+    is_secure = request.headers.get("x-forwarded-proto", "http") == "https"
+    response.set_cookie("oauth_state", state, max_age=300, httponly=True, samesite="lax", secure=is_secure)
     return response
 
 @app.get("/auth/callback")
@@ -310,9 +335,11 @@ async def auth_callback(code: str, state: str, request: Request):
     logger.info(f"Utilisateur connecté: {user_display} ({user_id})")
 
     response = RedirectResponse(url="/")
+    # secure=True seulement si la requête arrive en HTTPS (via Cloudflare/NPM)
+    is_secure = request.headers.get("x-forwarded-proto", "http") == "https"
     response.set_cookie("ev_session", session_token,
         max_age=SESSION_DURATION_H * 3600,
-        httponly=True, samesite="lax", secure=True)
+        httponly=True, samesite="lax", secure=is_secure)
     response.delete_cookie("oauth_state")
     return response
 
