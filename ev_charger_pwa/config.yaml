@@ -1,7 +1,7 @@
 ---
 name: "EV Charger PWA"
 description: "PWA de gestion recharge voiture - OAuth2 HA + Sessions HP/HC"
-version: "2.0.1"
+version: "2.0.2"
 slug: "ev_charger_pwa"
 init: false
 arch:

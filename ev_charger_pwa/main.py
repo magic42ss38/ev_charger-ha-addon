@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-HA_URL        = os.getenv("HA_URL", "http://homeassistant:8123")
+HA_URL        = os.getenv("HA_URL", "https://ha.domotique-nicof73.ovh")
 HA_TOKEN      = os.getenv("HA_TOKEN", "")          # token de service interne
 SWITCH_ENTITY = os.getenv("SWITCH_ENTITY", "switch.prise_voiture")
 POWER_SENSOR  = os.getenv("POWER_SENSOR",  "sensor.puissance_voiture2")

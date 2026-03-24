@@ -1,5 +1,6 @@
 # Changelog
-
+## 2.0.2
+- Add icon for addon
 ## 2.0.1
 - bug navigation between pages
 - - change icons (appli + HA addon)
