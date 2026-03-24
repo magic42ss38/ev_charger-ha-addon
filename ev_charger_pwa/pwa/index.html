@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -15,68 +15,100 @@
 </head>
 <body>
 
-<div class="app">
+<!-- ═══ LOGIN SCREEN ═══════════════════════════════════════════════════════ -->
+<div id="login-screen" class="login-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 56 56" fill="none">
+        <circle cx="28" cy="28" r="27" stroke="#00d4ff" stroke-width="1.5" opacity="0.3"/>
+        <path d="M32 8L16 30h12l-4 18L44 26H32L36 8z" fill="#00d4ff" stroke="#00d4ff" stroke-width="1" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="login-title">EV <span>CHARGE</span></div>
+    <div class="login-sub">Gestion de recharge intelligente</div>
+    <button class="login-btn" onclick="startLogin()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
+      </svg>
+      Connexion via Home Assistant
+    </button>
+    <div class="login-note">Authentification sécurisée OAuth2<br>via votre compte Home Assistant</div>
+  </div>
+</div>
 
-  <!-- ─── Header ─────────────────────────────────────────────── -->
+<!-- ═══ APP ════════════════════════════════════════════════════════════════ -->
+<div id="app" class="app" style="display:none">
+
   <header class="header">
     <div class="header-logo">
-      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 28 28" fill="none">
         <path d="M16 3L6 16h8l-2 9 10-13h-8l2-9z" fill="#00d4ff" stroke="#00d4ff" stroke-width="1" stroke-linejoin="round"/>
       </svg>
       <div class="header-title">EV <span>CHARGE</span></div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-      <span id="tarif-badge" class="tarif-badge hp">HP · 0.2516 €/kWh</span>
-      <span id="header-time" class="header-time">--:--:--</span>
+    <div class="header-right">
+      <span id="tarif-badge" class="tarif-badge hp">HP</span>
+      <button class="theme-btn" onclick="toggleTheme()" title="Thème">
+        <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+      <div class="user-badge" onclick="toggleUserMenu()">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-name" id="user-name">...</div>
+      </div>
     </div>
   </header>
 
-  <!-- ─── Connection banner ──────────────────────────────────── -->
-  <div id="conn-banner" class="conn-banner" style="margin:0 20px;margin-top:12px">
-    ⚠ Connexion perdue — données en cache
+  <!-- User dropdown -->
+  <div class="user-menu" id="user-menu">
+    <div class="user-menu-item" onclick="showPage('settings');toggleUserMenu()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Réglages
+    </div>
+    <div class="user-menu-item" onclick="exportCSV()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exporter CSV
+    </div>
+    <div class="user-menu-divider"></div>
+    <div class="user-menu-item danger" onclick="logout()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Déconnexion
+    </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════
-       PAGE HOME
-  ════════════════════════════════════════════════════════════ -->
-  <div id="page-home" class="page active">
+  <div id="conn-banner" class="conn-banner">⚠ Connexion perdue</div>
+  <div id="hc-countdown" class="hc-countdown" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span id="hc-countdown-text"></span>
+  </div>
 
-    <!-- Power display -->
+  <!-- ── PAGE HOME ──────────────────────────────────────────────────────── -->
+  <div id="page-home" class="page active">
     <div id="power-card" class="power-card">
       <div class="power-label">Puissance instantanée</div>
-      <div class="power-value">
-        <span id="power-val">—</span>
-        <span class="unit" id="power-unit">W</span>
-      </div>
-
+      <div class="power-value"><span id="power-val">—</span><span class="unit" id="power-unit">W</span></div>
       <div class="power-stats">
-        <div class="stat-item">
-          <div id="live-kwh-mini" class="stat-val green">—</div>
-          <div class="stat-lbl">kWh session</div>
-        </div>
-        <div class="stat-item">
-          <div id="live-cost-mini" class="stat-val amber">—</div>
-          <div class="stat-lbl">Coût estimé</div>
-        </div>
-        <div class="stat-item">
-          <div id="live-duration-mini" class="stat-val">—</div>
-          <div class="stat-lbl">Durée</div>
-        </div>
+        <div class="stat-item"><div id="live-kwh-mini" class="stat-val green">—</div><div class="stat-lbl">kWh session</div></div>
+        <div class="stat-item"><div id="live-cost-mini" class="stat-val amber">—</div><div class="stat-lbl">Coût estimé</div></div>
+        <div class="stat-item"><div id="live-duration-mini" class="stat-val">—</div><div class="stat-lbl">Durée</div></div>
       </div>
     </div>
 
-    <!-- Big switch -->
     <div class="switch-wrap">
       <button id="switch-btn" class="switch-btn off">
-        <svg class="switch-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
-          <line x1="12" y1="2" x2="12" y2="12"/>
+        <svg class="switch-icon" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
         </svg>
         <span class="switch-label" id="switch-label">ARRÊTÉ</span>
       </button>
     </div>
 
-    <!-- Session live -->
     <div id="session-live" style="display:none" class="session-live">
       <div class="session-live-header">
         <span class="session-live-title">Session en cours</span>
@@ -86,162 +118,102 @@
         </div>
       </div>
       <div class="session-grid">
-        <div class="session-cell">
-          <div class="session-cell-val" id="live-kwh">0.000</div>
-          <div class="session-cell-lbl">kWh chargés</div>
-        </div>
-        <div class="session-cell">
-          <div class="session-cell-val" id="live-cost">0.00 €</div>
-          <div class="session-cell-lbl">Coût estimé</div>
-        </div>
-        <div class="session-cell">
-          <div class="session-cell-val" id="live-duration">—</div>
-          <div class="session-cell-lbl">Durée</div>
-        </div>
-        <div class="session-cell">
-          <div class="session-cell-val" id="live-power-kw">—</div>
-          <div class="session-cell-lbl">Puissance moy.</div>
-        </div>
+        <div class="session-cell"><div class="session-cell-val" id="live-kwh">0.000</div><div class="session-cell-lbl">kWh chargés</div></div>
+        <div class="session-cell"><div class="session-cell-val" id="live-cost">0.00 €</div><div class="session-cell-lbl">Coût estimé</div></div>
+        <div class="session-cell"><div class="session-cell-val" id="live-duration">—</div><div class="session-cell-lbl">Durée</div></div>
+        <div class="session-cell"><div class="session-cell-val" id="live-tarif">—</div><div class="session-cell-lbl">Tarif actif</div></div>
       </div>
     </div>
 
-    <!-- Chart -->
     <div class="chart-card">
       <div class="chart-title">Puissance — 5 dernières minutes</div>
-      <div class="chart-wrapper">
-        <canvas id="powerChart"></canvas>
-      </div>
+      <div class="chart-wrapper"><canvas id="powerChart"></canvas></div>
     </div>
-
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════
-       PAGE HISTORY
-  ════════════════════════════════════════════════════════════ -->
+  <!-- ── PAGE HISTORY ───────────────────────────────────────────────────── -->
   <div id="page-history" class="page">
-
     <div class="stats-bar">
-      <div class="stats-card">
-        <div class="stats-card-val" id="stat-total">—</div>
-        <div class="stats-card-lbl">Sessions</div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-val" id="stat-kwh">—</div>
-        <div class="stats-card-lbl">Total kWh</div>
-      </div>
-      <div class="stats-card">
-        <div class="stats-card-val" id="stat-cost">—</div>
-        <div class="stats-card-lbl">Total coût</div>
-      </div>
+      <div class="stats-card"><div class="stats-card-val" id="stat-total">—</div><div class="stats-card-lbl">Sessions</div></div>
+      <div class="stats-card"><div class="stats-card-val" id="stat-kwh">—</div><div class="stats-card-lbl">Total kWh</div></div>
+      <div class="stats-card"><div class="stats-card-val" id="stat-cost">—</div><div class="stats-card-lbl">Total €</div></div>
     </div>
+
+    <div class="monthly-card">
+      <div class="chart-title">kWh par mois</div>
+      <div class="chart-wrapper-lg"><canvas id="monthlyChart"></canvas></div>
+    </div>
+
+    <button class="export-btn" onclick="exportCSV()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exporter CSV
+    </button>
 
     <div id="session-list" class="session-list">
-      <div class="empty">
-        <div class="empty-icon">⚡</div>
-        <div class="empty-text">Chargement...</div>
-      </div>
+      <div class="empty"><div class="empty-icon">⚡</div><div class="empty-text">Chargement...</div></div>
     </div>
-
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════
-       PAGE SETTINGS
-  ════════════════════════════════════════════════════════════ -->
+  <!-- ── PAGE SETTINGS ─────────────────────────────────────────────────── -->
   <div id="page-settings" class="page">
-
-    <div class="settings-section">
-      <div class="settings-title">Authentification</div>
-      <div class="field">
-        <label>Token Home Assistant (Long-Lived)</label>
-        <input type="password" id="input-token" placeholder="eyJ0eXAiOiJKV1Q..." autocomplete="current-password">
-      </div>
-      <div style="font-size:12px;color:var(--text-3);margin-top:-8px;margin-bottom:12px">
-        Profil HA → Sécurité → Tokens d'accès longue durée
+    <div class="profile-card">
+      <div class="profile-avatar" id="profile-avatar-big">?</div>
+      <div>
+        <div class="profile-name" id="profile-name">Chargement...</div>
+        <div class="profile-role" id="profile-role">Home Assistant</div>
       </div>
     </div>
 
     <div class="settings-section">
       <div class="settings-title">Tarifs électricité</div>
       <div class="field-row">
-        <div class="field">
-          <label>Tarif HP (€/kWh)</label>
-          <input type="number" id="input-hp" value="0.2516" step="0.0001" min="0">
-        </div>
-        <div class="field">
-          <label>Tarif HC (€/kWh)</label>
-          <input type="number" id="input-hc" value="0.1654" step="0.0001" min="0">
-        </div>
+        <div class="field"><label>Tarif HP (€/kWh)</label><input type="number" id="input-hp" value="0.2516" step="0.0001" min="0"></div>
+        <div class="field"><label>Tarif HC (€/kWh)</label><input type="number" id="input-hc" value="0.1654" step="0.0001" min="0"></div>
       </div>
       <div class="field-row">
-        <div class="field">
-          <label>Début HC</label>
-          <input type="time" id="input-hc-start" value="22:00">
-        </div>
-        <div class="field">
-          <label>Fin HC</label>
-          <input type="time" id="input-hc-end" value="06:00">
-        </div>
+        <div class="field"><label>Début HC</label><input type="time" id="input-hc-start" value="22:00"></div>
+        <div class="field"><label>Fin HC</label><input type="time" id="input-hc-end" value="06:00"></div>
       </div>
+      <button id="btn-save" class="btn btn-primary">Sauvegarder</button>
     </div>
 
     <div class="settings-section">
       <div class="settings-title">Entités Home Assistant</div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;font-family:var(--mono);font-size:12px;color:var(--text-2);line-height:2">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;font-family:var(--mono);font-size:12px;color:var(--text-2);line-height:2">
         <div>🔌 <span style="color:var(--cyan)">switch.prise_voiture</span></div>
         <div>⚡ <span style="color:var(--green)">sensor.puissance_voiture2</span></div>
         <div>📊 <span style="color:var(--amber)">sensor.energy_voiture</span></div>
-      </div>
-      <div style="font-size:11px;color:var(--text-3);margin-top:8px">
-        Modifiable dans la config de l'addon HA
       </div>
     </div>
 
     <div class="settings-section">
       <div class="settings-title">Notifications</div>
-      <button id="btn-notif" class="btn btn-secondary">
-        Activer les notifications push
-      </button>
-      <div style="font-size:11px;color:var(--text-3);margin-top:8px">
-        Notification quand la charge est terminée (puissance &lt; seuil)
-      </div>
+      <button id="btn-notif" class="btn btn-secondary" onclick="requestNotifications()">Activer les notifications push</button>
     </div>
 
-    <button id="btn-save" class="btn btn-primary">Sauvegarder</button>
-
-    <div style="margin-top:24px;text-align:center;font-size:11px;color:var(--text-3)">
-      EV Charger PWA v1.0 · <a href="https://ha.domotique-nicof73.ovh" style="color:var(--text-3)">Home Assistant</a>
+    <div style="margin-top:20px;text-align:center;font-size:11px;color:var(--text-3)">
+      EV Charger PWA v2.0 · OAuth2 HA
     </div>
-
   </div>
 
-</div><!-- .app -->
+</div><!-- #app -->
 
-<!-- ─── Bottom navigation ──────────────────────────────────────────────── -->
-<nav class="bottom-nav">
+<nav class="bottom-nav" id="bottom-nav" style="display:none">
   <button class="bottom-btn active" data-page="home">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-    </svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
     <span>Charge</span>
   </button>
   <button class="bottom-btn" data-page="history">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-    </svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Historique</span>
   </button>
   <button class="bottom-btn" data-page="settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-    </svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
     <span>Réglages</span>
   </button>
 </nav>
 
-<!-- Toast -->
 <div id="toast" class="toast"></div>
-
 <script src="/js/app.js"></script>
 </body>
 </html>
