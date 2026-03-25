@@ -1,238 +1,251 @@
-# ⚡ EV Charger PWA — Addon Home Assistant
+# ⚡ EV Charger PWA — Home Assistant Addon
 
-PWA de gestion de recharge voiture électrique, hébergée directement sur Home Assistant.
-
----
-
-## Fonctionnalités
-
-- **Contrôle de la prise** `switch.prise_voiture` depuis l'extérieur
-- **Puissance en temps réel** avec graphique
-- **Sessions de recharge** avec calcul automatique HP/HC
-- **Coût estimé** en direct pendant la charge
-- **Historique** des sessions avec coût total
-- **Notifications push** quand la charge est terminée
-- **PWA installable** sur Android / iOS
+Application web progressive (PWA) de gestion de recharge véhicule électrique, déployée comme addon Home Assistant.
 
 ---
 
-## Architecture
+## 📋 Sommaire
+
+- [Fonctionnalités](#fonctionnalités)
+- [Architecture](#architecture)
+- [Prérequis](#prérequis)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Déploiement NGINX](#déploiement-nginx)
+- [Configuration Home Assistant](#configuration-home-assistant)
+- [Installation PWA sur téléphone](#installation-pwa-sur-téléphone)
+- [Entités HA requises](#entités-ha-requises)
+- [Dépannage](#dépannage)
+- [Changelog](#changelog)
+
+---
+
+## ✨ Fonctionnalités
+
+- 🔐 **Authentification OAuth2** via Home Assistant (SSO natif)
+- 👤 **Badge utilisateur** avec initiales colorées et rôle HA (Owner / Admin / User)
+- 🌙 **Thème clair/sombre** avec détection automatique des préférences système + toggle manuel
+- ⚡ **Contrôle de la prise de recharge** (`switch.prise_voiture`)
+- 📊 **Statistiques mensuelles** avec graphe kWh par semaine
+- 📥 **Export CSV** des sessions de recharge
+- 🕐 **Widget heure creuse** — "prochain créneau HC dans X minutes"
+- 📱 **PWA installable** sur Android et iOS
+- 🔄 **Fonctionnement offline** via Service Worker
+
+---
+
+## 🏗️ Architecture
 
 ```
 Internet
-  └─ Cloudflare DNS (ha.domotique-nicof73.ovh)
-       └─ NGINX Proxy Manager
-            ├─ /        → Home Assistant Core (port 8123)
-            └─ /pwa     → FastAPI Addon (port 8765)
-                              ├─ Sert la PWA (HTML/CSS/JS)
-                              ├─ API REST /api/*
-                              └─ SQLite (sessions)
+   │
+   ▼
+NGINX (192.168.1.102:443)
+   │  proxy_pass
+   ▼
+Home Assistant Addon (port 8765)
+   │
+   ├── FastAPI backend (main.py)
+   ├── SQLite (sessions.db)
+   └── PWA (HTML/CSS/JS + Service Worker)
+```
+
+- **Backend** : Python 3.11 / FastAPI / Uvicorn
+- **Frontend** : Vanilla JS, CSS custom, Service Worker
+- **Auth** : OAuth2 Authorization Code Flow via HA
+- **DB** : SQLite pour les sessions de recharge
+
+---
+
+## 📦 Prérequis
+
+| Composant | Version minimale |
+|---|---|
+| Home Assistant | 2024.1+ |
+| NGINX | 1.18+ |
+| Certificat SSL | Let's Encrypt recommandé |
+
+---
+
+## 🚀 Installation
+
+### 1. Ajouter le dépôt dans HA
+
+**Paramètres → Modules complémentaires → Boutique → ⋮ → Dépôts**
+
+Ajouter l'URL de ton dépôt GitHub.
+
+### 2. Installer l'addon
+
+Rechercher **"EV Charger PWA"** → **Installer** → attendre la fin du build Docker.
+
+### 3. Configurer l'addon
+
+Onglet **Configuration** de l'addon (voir section [Configuration](#configuration)).
+
+### 4. Démarrer l'addon
+
+Onglet **Info** → **DÉMARRER**  
+Activer **"Démarrer au démarrage"** et **"Watchdog"**.
+
+---
+
+## ⚙️ Configuration
+
+Dans l'onglet **Configuration** de l'addon :
+
+```yaml
+pwa_url: "https://pwa.domotique-nicof73.ovh"   # URL publique de la PWA (= OAuth client_id)
+ha_url: "https://ha.domotique-nicof73.ovh"      # URL publique de Home Assistant
+switch_entity: "switch.prise_voiture"           # Entité switch de la prise
+power_sensor: "sensor.prise_voiture_puissance_2"  # Sensor puissance (W)
+energy_sensor: "sensor.prise_voiture_energy"      # Sensor énergie (kWh)
+hp_price: 0.2516                                # Tarif Heures Pleines (€/kWh)
+hc_price: 0.1654                                # Tarif Heures Creuses (€/kWh)
+```
+
+> ⚠️ **Important** : après tout changement de configuration, **redémarrer l'addon** pour que les nouvelles valeurs soient prises en compte.
+
+---
+
+## 🌐 Déploiement NGINX
+
+Fichier de configuration NGINX pour le reverse proxy :
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name pwa.domotique-nicof73.ovh;
+
+    ssl_certificate     /etc/letsencrypt/live/pwa.domotique-nicof73.ovh/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/pwa.domotique-nicof73.ovh/privkey.pem;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8765;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name pwa.domotique-nicof73.ovh;
+    return 301 https://$host$request_uri;
+}
 ```
 
 ---
 
-## Installation
+## 🏠 Configuration Home Assistant
 
-### Étape 1 — Publier le repo sur GitHub
+Ajouter dans `/config/configuration.yaml` :
+
+```yaml
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.30.0.0/16    # Réseau interne Docker HA
+    - 172.16.0.0/12    # Réseau Docker étendu
+    - 192.168.1.0/24   # Réseau LAN local
+    - 127.0.0.1
+    - ::1
+  ip_ban_enabled: true
+  login_attempts_threshold: 10
+```
+
+> ⚠️ **Sans `trusted_proxies`**, HA rejette les requêtes OAuth du proxy NGINX avec une erreur 400/403.
+
+Après modification : **Outils de développement → YAML → Vérifier la configuration → Redémarrer HA**
+
+---
+
+## 📱 Installation PWA sur téléphone
+
+### Android (Chrome)
+1. Ouvrir `https://pwa.domotique-nicof73.ovh` dans Chrome
+2. Se connecter via HA
+3. Appuyer sur le bouton **⬇️** dans le header de l'app
+4. Confirmer l'installation dans le prompt du navigateur
+
+### iOS (Safari) — ⚠️ Safari obligatoire
+1. Ouvrir `https://pwa.domotique-nicof73.ovh` dans **Safari** (pas Chrome)
+2. Se connecter via HA
+3. Appuyer sur le bouton **⬇️** dans le header de l'app
+4. Suivre le guide affiché :
+   - Appuyer sur l'icône **Partager** (carré avec flèche ↑)
+   - Sélectionner **"Sur l'écran d'accueil"**
+   - Confirmer avec **"Ajouter"**
+
+---
+
+## 🔌 Entités HA requises
+
+| Entité | Type | Unité | Description |
+|---|---|---|---|
+| `switch.prise_voiture` | switch | — | Contrôle de la prise de recharge |
+| `sensor.prise_voiture_puissance_2` | sensor | W | Puissance instantanée |
+| `sensor.prise_voiture_energy` | sensor | kWh | Énergie totale consommée |
+
+### Vérifier les entités
+
+**Outils de développement → Modèle** :
+
+```jinja2
+Prise : {{ states('switch.prise_voiture') }}
+Puissance : {{ states('sensor.prise_voiture_puissance_2') }} W
+Énergie : {{ states('sensor.prise_voiture_energy') }} kWh
+```
+
+Les trois valeurs doivent être numériques (pas `unknown` ou `unavailable`).
+
+---
+
+## 🛠️ Dépannage
+
+### 403 Forbidden sur ha.domotique-nicof73.ovh
+
+HA a banni ton IP après trop de tentatives échouées.
 
 ```bash
-# Créer un repo GitHub public (ex: ev-charger-ha-addon)
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/TON_USERNAME/ev-charger-ha-addon.git
-git push -u origin main
+# Via Terminal HA — vérifier les IPs bannies
+cat /config/ip_bans.yaml
+
+# Vider les bans
+echo "" > /config/ip_bans.yaml
 ```
 
-### Étape 2 — Ajouter le repo dans Home Assistant
+Puis redémarrer HA.
 
-1. Dans HA → **Paramètres** → **Modules complémentaires**
-2. Cliquer les **3 points** en haut à droite → **Dépôts**
-3. Ajouter : `https://github.com/TON_USERNAME/ev-charger-ha-addon`
-4. Rafraîchir la page
-5. L'addon **"EV Charger PWA"** apparaît dans le store
+### Erreur 500 sur /api/status
 
-### Étape 3 — Configurer l'addon
+Migration DB manquante. Vérifier les logs de l'addon :  
+→ Si `no such column: user_id` → mettre à jour vers **v3.2.4+**
 
-Dans la config de l'addon (onglet **Configuration**) :
+### Service Worker qui cache les anciennes versions
 
-```yaml
-ha_token: "eyJ0eXAiOiJKV1Q..."   # Token longue durée (voir ci-dessous)
-ha_url: "http://homeassistant:8123"
-switch_entity: "switch.prise_voiture"
-power_sensor: "sensor.puissance_voiture2"
-energy_sensor: "sensor.prise_voiture_energy"
-tarif_hp: 0.2516                   # €/kWh HP EDF
-tarif_hc: 0.1654                   # €/kWh HC EDF
-hc_start: "22:00"                  # Début heures creuses
-hc_end: "06:00"                    # Fin heures creuses
-notification_threshold_kw: 0.1     # Seuil fin de charge (kW)
-```
+F12 → **Application → Storage → Clear site data** ✓
 
-#### Créer le token Home Assistant
+### Les sensors affichent `unavailable`
 
-1. HA → **Profil** (icône en bas à gauche)
-2. Onglet **Sécurité**
-3. Section **Tokens d'accès longue durée** → **Créer un token**
-4. Nommer-le "EV Charger PWA"
-5. Copier le token (ne s'affiche qu'une fois !)
-
-### Étape 4 — Démarrer l'addon
-
-1. Onglet **Info** → **Démarrer**
-2. Vérifier les logs : `Démarrage EV Charger PWA...`
-3. Tester localement : `http://IP_RASPI:8765/pwa`
-
-### Étape 5 — Configurer NGINX Proxy Manager
-
-Dans **NGINX Proxy Manager** → ton proxy host `ha.domotique-nicof73.ovh` :
-
-1. Onglet **Advanced** → coller le contenu de `nginx_config.conf`
-2. Remplacer `127.0.0.1` par l'IP du Raspberry si NPM est dans Docker
-3. Sauvegarder
-
-**Test :** `https://ha.domotique-nicof73.ovh/pwa`
-
-### Étape 6 — Configuration Cloudflare
-
-1. SSL/TLS → Mode **Full (strict)**
-2. Cache Rules → Créer une règle :
-   - Si URL contient `/api/` → Cache Level: **Bypass**
-   - Évite que Cloudflare cache les réponses API
-
-### Étape 7 — Configurer la PWA
-
-1. Ouvrir `https://ha.domotique-nicof73.ovh/pwa`
-2. Onglet **Réglages**
-3. Coller ton token HA
-4. Ajuster les tarifs HP/HC si besoin
-5. Sauvegarder
+1. Vérifier que l'intégration est bien configurée dans HA
+2. Vérifier l'`entity_id` exact dans **Outils de développement → États**
+3. Mettre à jour `power_sensor` et `energy_sensor` dans la config de l'addon
+4. **Redémarrer l'addon**
 
 ---
 
-## Utilisation
+## 📋 Changelog
 
-### Démarrer une charge
+Voir le fichier [CHANGELOG.md](./CHANGELOG.md) pour l'historique complet des versions.
 
-1. Ouvrir la PWA
-2. Vérifier le badge tarifaire en haut (HP ou HC)
-3. Appuyer sur le **bouton rond**
-4. Confirmer → la session démarre
-
-Le compteur kWh, le coût et la durée s'affichent en temps réel.
-
-### Arrêter une charge
-
-1. Appuyer sur le bouton
-2. Confirmer l'arrêt
-3. La session est enregistrée automatiquement
-
-### Installer sur le téléphone
-
-**Android :**
-- Chrome → Menu (3 points) → "Ajouter à l'écran d'accueil"
-
-**iOS :**
-- Safari → Partager → "Sur l'écran d'accueil"
+**Version actuelle : 3.2.5**
 
 ---
 
-## Sensor energy_voiture — Reset quotidien
+## 👤 Auteur
 
-Ton capteur `sensor.prise_voiture_energy` se remet à zéro quotidiennement.
-Le système gère ça correctement :
+**NicoF73** — Domotique Savoie  
+🌐 `ha.domotique-nicof73.ovh`
 
-- À chaque **début de session**, l'énergie de départ est sauvegardée
-- Si le capteur repart de 0 en cours de session, la prochaine session
-  repart proprement depuis la nouvelle base
-- Si tu veux un compteur cumulé, crée un utility_meter dans HA :
-
-```yaml
-# configuration.yaml
-utility_meter:
-  energy_voiture_total:
-    source: sensor.prise_voiture_energy
-    cycle: monthly
-```
-
----
-
-## Structure du projet
-
-```
-ev-charger-ha-addon/
-├── config.yaml          # Définition addon HA
-├── build.json           # Multi-arch (aarch64, amd64, armv7...)
-├── Dockerfile           # Image Python Alpine
-├── requirements.txt     # FastAPI, uvicorn, aiosqlite...
-├── main.py              # Serveur FastAPI complet
-├── repository.json      # Pour le store HA
-├── nginx_config.conf    # Config NGINX Proxy Manager
-└── rootfs/
-    └── usr/bin/
-        └── ev_charger.sh  # Script de démarrage
-└── pwa/
-    ├── index.html       # App principale
-    ├── manifest.json    # PWA manifest
-    ├── sw.js            # Service Worker
-    ├── css/
-    │   └── style.css    # Thème dark industriel
-    ├── js/
-    │   └── app.js       # Logique app
-    └── icons/
-        ├── icon-192.png
-        └── icon-512.png
-```
-
----
-
-## API Reference
-
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/status` | État complet (switch, puissance, session) |
-| POST | `/api/switch/on` | Allumer + ouvrir session |
-| POST | `/api/switch/off` | Éteindre + clôturer session |
-| GET | `/api/sessions` | Historique + stats |
-| DELETE | `/api/sessions/{id}` | Supprimer session |
-| GET | `/api/tarifs` | Tarifs HP/HC actuels |
-| POST | `/api/tarifs` | Modifier tarifs |
-| POST | `/api/push/subscribe` | Abonnement notifications |
-
-Tous les endpoints requièrent : `Authorization: Bearer <HA_TOKEN>`
-
----
-
-## Dépannage
-
-**La PWA ne charge pas les données**
-→ Vérifier les logs de l'addon
-→ Tester `http://IP_RASPI:8765/api/status` en local
-
-**"Token invalide"**
-→ Vérifier que le token est bien collé sans espace
-→ Le token HA doit être un token longue durée, pas le mot de passe
-
-**Les sessions n'ont pas de kWh**
-→ Vérifier que `sensor.prise_voiture_energy` retourne bien une valeur numérique
-→ Dans HA : Outils développeur → États → chercher l'entité
-
-**NGINX 502 Bad Gateway**
-→ L'addon n'est pas démarré, ou le port 8765 n'est pas accessible
-→ Si NPM est en Docker, utiliser l'IP du RPi dans proxy_pass
-
-**Cloudflare cache l'API**
-→ Créer une Cache Rule pour bypass sur `/api/*`
-
----
-
-## Changelog
-
-### v1.0.0
-- Version initiale
-- Contrôle switch Tuya
-- Sessions HP/HC avec calcul coût
-- Graphique puissance temps réel
-- Historique des sessions
-- Notifications push
-- PWA installable
