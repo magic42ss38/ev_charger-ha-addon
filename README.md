@@ -238,7 +238,7 @@ F12 → **Application → Storage → Clear site data** ✓
 
 ## 📋 Changelog
 
-Voir le fichier [CHANGELOG.md](./CHANGELOG.md) pour l'historique complet des versions.
+Voir le fichier [CHANGELOG.md](ev_charger_pwa/CHANGELOG.md) pour l'historique complet des versions.
 
 **Version actuelle : 3.2.5**
 

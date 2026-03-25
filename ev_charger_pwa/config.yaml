@@ -1,7 +1,7 @@
 ---
 name: "EV Charger PWA"
 description: "PWA de gestion recharge voiture - OAuth2 HA + Sessions HP/HC"
-version: "3.2.5"
+version: "3.2.6"
 slug: "ev_charger_pwa"
 init: false
 arch:
@@ -20,8 +20,8 @@ options:
   ha_url: "http://homeassistant:8123"
   pwa_url: "https://pwa.domotique-nicof73.ovh"
   switch_entity: "switch.prise_voiture"
-  power_sensor: "sensor.puissance_voiture2"
-  energy_sensor: "sensor.energy_voiture"
+  power_sensor: "sensor.prise_voiture_puissance_2"
+  energy_sensor: "sensor.prise_voiture_energy"
   tarif_hp: 0.2516
   tarif_hc: 0.1654
   hc_start: "22:00"
