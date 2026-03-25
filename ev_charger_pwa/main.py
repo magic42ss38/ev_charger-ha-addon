@@ -1,6 +1,10 @@
 """
-EV Charger PWA - FastAPI Backend v2.0
-OAuth2 HA + Sessions HP/HC + Profils utilisateurs
+EV Charger PWA - FastAPI Backend v3.0
+PropalC : OAuth2 HA + Session FastAPI étendue
+- Rôle HA (propriétaire / admin / utilisateur)
+- Stats hebdomadaires (kWh par semaine d'un mois)
+- Export CSV amélioré
+- Préférences thème par utilisateur
 """
 import os, json, asyncio, logging, secrets, hashlib
 from datetime import datetime, time, timedelta
@@ -9,9 +13,9 @@ from contextlib import asynccontextmanager
 
 import httpx
 import aiosqlite
-from fastapi import FastAPI, HTTPException, Depends, Header, Request, Response
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -20,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 HA_URL        = os.getenv("HA_URL", "https://ha.domotique-nicof73.ovh")
-HA_TOKEN      = os.getenv("HA_TOKEN", "")          # token de service interne
+HA_TOKEN      = os.getenv("HA_TOKEN", "")
 SWITCH_ENTITY = os.getenv("SWITCH_ENTITY", "switch.prise_voiture")
 POWER_SENSOR  = os.getenv("POWER_SENSOR",  "sensor.puissance_voiture2")
 ENERGY_SENSOR = os.getenv("ENERGY_SENSOR", "sensor.energy_voiture")
@@ -32,10 +36,10 @@ NOTIFICATION_THRESHOLD = float(os.getenv("NOTIFICATION_THRESHOLD", "0.1"))
 DB_PATH       = "/data/sessions.db"
 
 # OAuth2 HA
-OAUTH_CLIENT_ID     = os.getenv("OAUTH_CLIENT_ID", "ev-charger-pwa")
-OAUTH_REDIRECT_URI  = os.getenv("OAUTH_REDIRECT_URI", "https://pwa.domotique-nicof73.ovh/auth/callback")
-SESSION_SECRET      = os.getenv("SESSION_SECRET", secrets.token_hex(32))
-SESSION_DURATION_H  = 24
+OAUTH_CLIENT_ID    = os.getenv("OAUTH_CLIENT_ID", "ev-charger-pwa")
+OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "https://pwa.domotique-nicof73.ovh/auth/callback")
+SESSION_SECRET     = os.getenv("SESSION_SECRET", secrets.token_hex(32))
+SESSION_DURATION_H = 24
 
 # ─── DB ───────────────────────────────────────────────────────────────────────
 async def init_db():
@@ -60,12 +64,18 @@ async def init_db():
                 user_id TEXT NOT NULL,
                 user_name TEXT,
                 user_display_name TEXT,
+                ha_role TEXT DEFAULT 'user',
                 ha_access_token TEXT,
                 ha_refresh_token TEXT,
                 ha_token_expires TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 last_seen TEXT
             )""")
+        # Migration : ajouter la colonne ha_role si elle n'existe pas encore
+        try:
+            await db.execute("ALTER TABLE user_sessions ADD COLUMN ha_role TEXT DEFAULT 'user'")
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS user_prefs (
                 user_id TEXT PRIMARY KEY,
@@ -73,7 +83,7 @@ async def init_db():
                 tarif_hc REAL,
                 hc_start TEXT,
                 hc_end TEXT,
-                theme TEXT DEFAULT 'dark',
+                theme TEXT DEFAULT 'system',
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )""")
         await db.execute("""
@@ -89,7 +99,7 @@ async def init_db():
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )""")
         await db.commit()
-    logger.info("DB v2 initialisée")
+    logger.info("DB v3 initialisée")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 def is_heure_creuse(dt=None, hc_start=HC_START, hc_end=HC_END):
@@ -121,6 +131,13 @@ def minutes_until_hc(hc_start=HC_START):
     if t >= h_s:
         target += timedelta(days=1)
     return int((target - now).total_seconds() / 60)
+
+def ha_role_label(is_owner: bool, is_admin: bool) -> str:
+    if is_owner:
+        return "owner"
+    if is_admin:
+        return "admin"
+    return "user"
 
 async def ha_get(path: str, token: str = None):
     t = token or HA_TOKEN
@@ -176,7 +193,7 @@ async def close_active_session(user_id: str = None, token: str = None):
                 (datetime.now().isoformat(), energy_end, kwh, cost, sid))
             await db.commit()
 
-# ─── OAuth2 HA ────────────────────────────────────────────────────────────────
+# ─── OAuth2 Session ───────────────────────────────────────────────────────────
 async def get_session(request: Request):
     token = request.cookies.get("ev_session")
     if not token:
@@ -189,11 +206,9 @@ async def get_session(request: Request):
             row = await cur.fetchone()
     if not row:
         raise HTTPException(status_code=401, detail="Session invalide")
-    # Vérifier expiration
     created = datetime.fromisoformat(row["created_at"])
     if datetime.now() - created > timedelta(hours=SESSION_DURATION_H):
         raise HTTPException(status_code=401, detail="Session expirée")
-    # Mettre à jour last_seen
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE user_sessions SET last_seen=? WHERE token=?",
             (datetime.now().isoformat(), token))
@@ -215,19 +230,17 @@ async def lifespan(app: FastAPI):
     await init_db()
     yield
 
-app = FastAPI(title="EV Charger API v2", lifespan=lifespan)
+app = FastAPI(title="EV Charger API v3", lifespan=lifespan)
 
-# Middleware pour les headers proxy (NPM + Cloudflare)
 from starlette.middleware.base import BaseHTTPMiddleware
 class ProxyHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        # Reconstruire le scheme depuis X-Forwarded-Proto
         proto = request.headers.get("x-forwarded-proto")
         if proto:
             request.scope["scheme"] = proto
         return await call_next(request)
 app.add_middleware(ProxyHeadersMiddleware)
-# Origins autorisées — ajouter ici si domaine change
+
 ALLOWED_ORIGINS = [
     "https://pwa.domotique-nicof73.ovh",
     "https://ha.domotique-nicof73.ovh",
@@ -251,7 +264,7 @@ class TarifConfig(BaseModel):
     hc_end: str
 
 class ThemeUpdate(BaseModel):
-    theme: str
+    theme: str  # 'dark' | 'light' | 'system'
 
 class SessionNote(BaseModel):
     notes: str
@@ -265,9 +278,7 @@ class PushSubscription(BaseModel):
 
 @app.get("/auth/login")
 async def auth_login(request: Request):
-    """Initie le flow OAuth2 vers HA."""
     state = secrets.token_urlsafe(16)
-    # Stocker le state dans un cookie temporaire
     params = (
         f"response_type=code"
         f"&client_id={OAUTH_CLIENT_ID}"
@@ -282,13 +293,10 @@ async def auth_login(request: Request):
 
 @app.get("/auth/callback")
 async def auth_callback(code: str, state: str, request: Request):
-    """Callback OAuth2 — échange le code contre un token HA."""
-    # Vérifier le state
     stored_state = request.cookies.get("oauth_state")
     if stored_state and stored_state != state:
         raise HTTPException(status_code=400, detail="State OAuth invalide")
 
-    # Échanger le code contre un token
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.post(f"{HA_URL}/auth/token", data={
@@ -308,34 +316,38 @@ async def auth_callback(code: str, state: str, request: Request):
     expires_in       = token_data.get("expires_in", 1800)
     ha_token_expires = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
 
-    # Récupérer le profil utilisateur HA
+    # Récupérer le profil + rôle utilisateur HA
+    user_id = user_name = user_display = None
+    ha_role = "user"
     try:
         profile = await ha_get("config/auth/current_user", ha_access_token)
-        user_id   = profile.get("id", "unknown")
-        user_name = profile.get("username", "user")
+        user_id      = profile.get("id", "unknown")
+        user_name    = profile.get("username", "user")
         user_display = profile.get("name") or user_name
+        ha_role      = ha_role_label(
+            profile.get("is_owner", False),
+            profile.get("is_admin", False)
+        )
     except Exception:
-        user_id = hashlib.md5(ha_access_token.encode()).hexdigest()[:8]
-        user_name = "user"
+        user_id      = hashlib.md5(ha_access_token.encode()).hexdigest()[:8]
+        user_name    = "user"
         user_display = "Utilisateur"
 
-    # Créer la session
     session_token = secrets.token_urlsafe(32)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT OR REPLACE INTO user_sessions
-            (token, user_id, user_name, user_display_name,
+            (token, user_id, user_name, user_display_name, ha_role,
              ha_access_token, ha_refresh_token, ha_token_expires, created_at, last_seen)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (session_token, user_id, user_name, user_display,
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (session_token, user_id, user_name, user_display, ha_role,
              ha_access_token, ha_refresh_token, ha_token_expires,
              datetime.now().isoformat(), datetime.now().isoformat()))
         await db.commit()
 
-    logger.info(f"Utilisateur connecté: {user_display} ({user_id})")
+    logger.info(f"Connexion: {user_display} ({user_id}) rôle={ha_role}")
 
     response = RedirectResponse(url="/")
-    # secure=True seulement si la requête arrive en HTTPS (via Cloudflare/NPM)
     is_secure = request.headers.get("x-forwarded-proto", "http") == "https"
     response.set_cookie("ev_session", session_token,
         max_age=SESSION_DURATION_H * 3600,
@@ -345,7 +357,6 @@ async def auth_callback(code: str, state: str, request: Request):
 
 @app.post("/auth/logout")
 async def auth_logout(session=Depends(get_session)):
-    """Déconnexion — supprime la session."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM user_sessions WHERE token=?", (session["token"],))
         await db.commit()
@@ -355,14 +366,13 @@ async def auth_logout(session=Depends(get_session)):
 
 @app.get("/auth/check")
 async def auth_check(request: Request):
-    """Vérifie si l'utilisateur est connecté sans bloquer."""
     token = request.cookies.get("ev_session")
     if not token:
         return {"authenticated": False}
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT user_id,user_name,user_display_name,created_at FROM user_sessions WHERE token=?",
+            "SELECT user_id,user_name,user_display_name,ha_role,created_at FROM user_sessions WHERE token=?",
             (token,)
         ) as cur:
             row = await cur.fetchone()
@@ -373,9 +383,10 @@ async def auth_check(request: Request):
         return {"authenticated": False}
     return {
         "authenticated": True,
-        "user_id": row["user_id"],
-        "user_name": row["user_name"],
+        "user_id":      row["user_id"],
+        "user_name":    row["user_name"],
         "display_name": row["user_display_name"],
+        "ha_role":      row["ha_role"] or "user",
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -384,13 +395,13 @@ async def auth_check(request: Request):
 
 @app.get("/api/me")
 async def get_me(session=Depends(get_session)):
-    """Profil utilisateur complet."""
     prefs = await get_user_prefs(session["user_id"])
     return {
         "user_id":      session["user_id"],
         "user_name":    session["user_name"],
         "display_name": session["user_display_name"],
-        "theme":        prefs.get("theme", "dark"),
+        "ha_role":      session.get("ha_role", "user"),
+        "theme":        prefs.get("theme", "system"),
         "tarif_hp":     prefs.get("tarif_hp") or TARIF_HP,
         "tarif_hc":     prefs.get("tarif_hc") or TARIF_HC,
         "hc_start":     prefs.get("hc_start") or HC_START,
@@ -399,7 +410,7 @@ async def get_me(session=Depends(get_session)):
 
 @app.get("/api/status")
 async def get_status(session=Depends(get_session)):
-    prefs = await get_user_prefs(session["user_id"])
+    prefs  = await get_user_prefs(session["user_id"])
     ha_tok = session.get("ha_access_token") or HA_TOKEN
 
     switch_state = await get_entity_state(SWITCH_ENTITY, ha_tok)
@@ -412,16 +423,14 @@ async def get_status(session=Depends(get_session)):
     he = prefs.get("hc_end")   or HC_END
 
     tarif_val, mode = get_tarif(hp, hc, hs, he)
-    is_on = switch_state.get("state") == "on"
 
     try:
         power = float(power_state.get("state", 0))
     except (ValueError, TypeError):
         power = 0.0
 
-    # Session active pour cet utilisateur
     active_session = None
-    session_kwh = None
+    session_kwh    = None
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
@@ -448,7 +457,11 @@ async def get_status(session=Depends(get_session)):
                     "minutes_until_hc": mins_hc},
         "session_active": active_session,
         "session_kwh":    session_kwh,
-        "user":    {"display_name": session["user_display_name"], "user_id": session["user_id"]},
+        "user": {
+            "display_name": session["user_display_name"],
+            "user_id":      session["user_id"],
+            "ha_role":      session.get("ha_role", "user"),
+        },
         "timestamp": datetime.now().isoformat()
     }
 
@@ -492,18 +505,6 @@ async def get_sessions(limit: int = 50, session=Depends(get_session)):
     sessions = [dict(r) for r in rows]
     total_kwh  = sum(s["energy_kwh"] or 0 for s in sessions)
     total_cost = sum(s["cost"]       or 0 for s in sessions)
-
-    # Stats hebdo (7 derniers jours)
-    weekly = {}
-    for s in sessions:
-        if not s["start_time"]: continue
-        day = s["start_time"][:10]
-        if day not in weekly:
-            weekly[day] = {"kwh": 0, "cost": 0, "count": 0}
-        weekly[day]["kwh"]   += s["energy_kwh"] or 0
-        weekly[day]["cost"]  += s["cost"]       or 0
-        weekly[day]["count"] += 1
-
     return {
         "sessions": sessions,
         "stats": {
@@ -511,7 +512,6 @@ async def get_sessions(limit: int = 50, session=Depends(get_session)):
             "total_kwh":  round(total_kwh,  3),
             "total_cost": round(total_cost, 2),
         },
-        "weekly": weekly
     }
 
 @app.delete("/api/sessions/{session_id}")
@@ -556,6 +556,8 @@ async def update_tarifs(config: TarifConfig, session=Depends(get_session)):
 
 @app.post("/api/theme")
 async def update_theme(body: ThemeUpdate, session=Depends(get_session)):
+    if body.theme not in ("dark", "light", "system"):
+        raise HTTPException(status_code=400, detail="Thème invalide")
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO user_prefs (user_id, theme) VALUES (?,?)
@@ -574,9 +576,11 @@ async def push_subscribe(sub: PushSubscription, session=Depends(get_session)):
         await db.commit()
     return {"success": True}
 
+# ─── Stats ────────────────────────────────────────────────────────────────────
+
 @app.get("/api/stats/monthly")
 async def get_monthly_stats(session=Depends(get_session)):
-    """Stats mensuelles pour le graphique."""
+    """Stats mensuelles (12 derniers mois)."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -591,37 +595,96 @@ async def get_monthly_stats(session=Depends(get_session)):
             rows = await cur.fetchall()
     return {"monthly": [dict(r) for r in rows]}
 
+@app.get("/api/stats/weekly")
+async def get_weekly_stats(month: str = None, session=Depends(get_session)):
+    """
+    Stats hebdomadaires pour un mois donné.
+    Paramètre month : 'YYYY-MM' (défaut = mois courant).
+    Retourne les kWh et coûts regroupés par semaine du mois (S1 à S5).
+    """
+    if not month:
+        month = datetime.now().strftime("%Y-%m")
+    # Validation format
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Format month invalide (YYYY-MM)")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Semaine du mois = (jour - 1) // 7 + 1  → S1..S5
+        async with db.execute("""
+            SELECT
+                CAST((CAST(strftime('%d', start_time) AS INTEGER) - 1) / 7 + 1 AS INTEGER) as week_num,
+                SUM(energy_kwh) as kwh,
+                SUM(cost) as cost,
+                COUNT(*) as count,
+                SUM(CASE WHEN tarif_mode='HC' THEN energy_kwh ELSE 0 END) as kwh_hc,
+                SUM(CASE WHEN tarif_mode='HP' THEN energy_kwh ELSE 0 END) as kwh_hp
+            FROM sessions
+            WHERE user_id=? AND status='completed'
+              AND strftime('%Y-%m', start_time) = ?
+            GROUP BY week_num ORDER BY week_num
+        """, (session["user_id"], month)) as cur:
+            rows = await cur.fetchall()
+
+    # S'assurer d'avoir les 4 semaines même si vides
+    weeks_map = {r["week_num"]: dict(r) for r in rows}
+    result = []
+    for w in range(1, 6):
+        if w in weeks_map:
+            result.append(weeks_map[w])
+        else:
+            result.append({"week_num": w, "kwh": 0, "cost": 0, "count": 0,
+                           "kwh_hc": 0, "kwh_hp": 0})
+
+    # Résumé mensuel
+    total_kwh  = sum(r["kwh"]  or 0 for r in result)
+    total_cost = sum(r["cost"] or 0 for r in result)
+    total_sess = sum(r["count"]    for r in result)
+
+    return {
+        "month": month,
+        "weekly": result,
+        "summary": {
+            "total_kwh":      round(total_kwh, 3),
+            "total_cost":     round(total_cost, 2),
+            "total_sessions": total_sess,
+        }
+    }
+
 @app.get("/api/export/csv")
 async def export_csv(session=Depends(get_session)):
-    """Export CSV des sessions."""
+    """Export CSV complet des sessions avec BOM UTF-8 (compatible Excel)."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM sessions WHERE user_id=? AND status='completed' ORDER BY id DESC",
+            "SELECT * FROM sessions WHERE user_id=? AND status='completed' ORDER BY start_time DESC",
             (session["user_id"],)
         ) as cur:
             rows = await cur.fetchall()
-    lines = ["Date début,Date fin,kWh,Coût (€),Tarif,Durée (min),Notes"]
+
+    lines = ["\ufeffDate début,Date fin,kWh,Coût (€),Tarif,Durée (min),Notes"]
     for r in rows:
         dur = ""
         if r["start_time"] and r["end_time"]:
             try:
                 diff = datetime.fromisoformat(r["end_time"]) - datetime.fromisoformat(r["start_time"])
-                dur = str(int(diff.total_seconds() / 60))
+                dur  = str(int(diff.total_seconds() / 60))
             except Exception:
                 pass
+        kwh  = f'{r["energy_kwh"]:.3f}' if r["energy_kwh"] is not None else ""
+        cost = f'{r["cost"]:.4f}'        if r["cost"]       is not None else ""
         lines.append(
             f'{r["start_time"]},{r["end_time"] or ""},'
-            f'{r["energy_kwh"] or ""},'
-            f'{r["cost"] or ""},'
+            f'{kwh},{cost},'
             f'{r["tarif_mode"] or ""},'
             f'{dur},'
-            f'"{r["notes"] or ""}"'
+            f'"{(r["notes"] or "").replace(chr(34), chr(39))}"'
         )
-    from fastapi.responses import PlainTextResponse
     return PlainTextResponse(
         "\n".join(lines),
-        media_type="text/csv",
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=sessions_ev.csv"}
     )
 
@@ -653,9 +716,9 @@ async def watchdog():
 async def start_watchdog():
     asyncio.create_task(watchdog())
 
-# ─── Static PWA ───────────────────────────────────────────────────────────────
-app.mount("/", StaticFiles(directory="/app/pwa", html=True), name="pwa")
-
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": "2.0", "timestamp": datetime.now().isoformat()}
+    return {"status": "healthy", "version": "3.0", "timestamp": datetime.now().isoformat()}
+
+# ─── Static PWA ───────────────────────────────────────────────────────────────
+app.mount("/", StaticFiles(directory="/app/pwa", html=True), name="pwa")
