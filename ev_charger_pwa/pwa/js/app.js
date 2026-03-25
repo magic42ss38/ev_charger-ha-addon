@@ -696,6 +696,14 @@ async function toggleSwitch() {
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 async function loadSettings() {
+  // Afficher les vraies entités configurées
+  try {
+    const cfg = await api('/api/config');
+    const ps = $('display-power-sensor');
+    const es = $('display-energy-sensor');
+    if (ps && cfg.power_sensor) ps.textContent = cfg.power_sensor;
+    if (es && cfg.energy_sensor) es.textContent = cfg.energy_sensor;
+  } catch(e) { /* silencieux */ }
   if (!state.user) return;
   renderUserBadge(state.user);
   try {

@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 HA_URL        = os.getenv("HA_URL", "https://ha.domotique-nicof73.ovh")
 HA_TOKEN      = os.getenv("HA_TOKEN", "")
 SWITCH_ENTITY = os.getenv("SWITCH_ENTITY", "switch.prise_voiture")
-POWER_SENSOR  = os.getenv("POWER_SENSOR",  "sensor.prise_voiture_puissance_2")
-ENERGY_SENSOR = os.getenv("ENERGY_SENSOR", "sensor.prise_voiture_energy")
+POWER_SENSOR  = os.getenv("POWER_SENSOR",  "sensor.puissance_voiture2")
+ENERGY_SENSOR = os.getenv("ENERGY_SENSOR", "sensor.energy_voiture")
 TARIF_HP      = float(os.getenv("TARIF_HP", "0.2516"))
 TARIF_HC      = float(os.getenv("TARIF_HC", "0.1654"))
 HC_START      = os.getenv("HC_START", "22:00")
@@ -429,6 +429,17 @@ async def get_me(session=Depends(get_session)):
         "hc_end":       prefs.get("hc_end")   or HC_END,
     }
 
+
+@app.get("/api/config")
+async def get_config(session=Depends(get_session)):
+    """Retourne la configuration publique (entités, etc.) pour l'UI."""
+    return {
+        "power_sensor":  POWER_SENSOR,
+        "energy_sensor": ENERGY_SENSOR,
+        "switch_entity": SWITCH_ENTITY,
+        "pwa_version":   "3.2.7"
+    }
+
 @app.get("/api/status")
 async def get_status(session=Depends(get_session)):
     prefs  = await get_user_prefs(session["user_id"])
@@ -478,6 +489,7 @@ async def get_status(session=Depends(get_session)):
                     "minutes_until_hc": mins_hc},
         "session_active": active_session,
         "session_kwh":    session_kwh,
+        "session_cost":   round(session_kwh * (hc if mode=="HC" else hp), 4) if session_kwh is not None else None,
         "user": {
             "display_name": session["user_display_name"],
             "user_id":      session["user_id"],

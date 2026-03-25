@@ -221,7 +221,7 @@ Puis redémarrer HA.
 ### Erreur 500 sur /api/status
 
 Migration DB manquante. Vérifier les logs de l'addon :  
-→ Si `no such column: user_id` → mettre à jour vers **v3.2.4+**
+→ Si `no such column: user_id` → mettre à jour vers **v3.2.7+**
 
 ### Service Worker qui cache les anciennes versions
 
@@ -238,9 +238,9 @@ F12 → **Application → Storage → Clear site data** ✓
 
 ## 📋 Changelog
 
-Voir le fichier [CHANGELOG.md](ev_charger_pwa/CHANGELOG.md) pour l'historique complet des versions.
+Voir le fichier [CHANGELOG.md](./CHANGELOG.md) pour l'historique complet des versions.
 
-**Version actuelle : 3.2.5**
+**Version actuelle : 3.2.7**
 
 ---
 

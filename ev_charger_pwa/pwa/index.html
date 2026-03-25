@@ -259,6 +259,7 @@
         <div class="field"><label>Début HC</label><input type="time" id="input-hc-start" value="22:00"></div>
         <div class="field"><label>Fin HC</label><input type="time" id="input-hc-end" value="06:00"></div>
       </div>
+      <button class="btn btn-ghost" onclick="showPage('home')" style="margin-right:8px">Annuler</button>
       <button id="btn-save" class="btn btn-primary">Sauvegarder</button>
     </div>
 
@@ -266,8 +267,8 @@
       <div class="settings-title">Entités Home Assistant</div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;font-family:var(--mono);font-size:12px;color:var(--text-2);line-height:2">
         <div>🔌 <span style="color:var(--cyan)">switch.prise_voiture</span></div>
-        <div>⚡ <span style="color:var(--green)">sensor.puissance_voiture2</span></div>
-        <div>📊 <span style="color:var(--amber)">sensor.energy_voiture</span></div>
+        <div>⚡ <span id="display-power-sensor" style="color:var(--green)">—</span></div>
+        <div>📊 <span id="display-energy-sensor" style="color:var(--amber)">—</span></div>
       </div>
     </div>
 
