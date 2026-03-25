@@ -29,7 +29,8 @@
     <button class="login-btn" onclick="startLogin()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-        <polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+        <polyline points="10 17 15 12 10 7"/>
+        <line x1="15" y1="12" x2="3" y2="12"/>
       </svg>
       Connexion via Home Assistant
     </button>
@@ -49,42 +50,23 @@
     </div>
     <div class="header-right">
       <span id="tarif-badge" class="tarif-badge hp">HP</span>
-      <button class="theme-btn" onclick="toggleTheme()" title="Thème clair/sombre" id="theme-btn">
-        <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-          <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <button class="theme-btn" onclick="toggleTheme()" title="Thème">
+        <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
           <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
           <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
         </svg>
-        <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-        </svg>
-        <svg id="theme-icon-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" opacity=".4"/>
-        </svg>
       </button>
       <div class="user-badge" onclick="toggleUserMenu()">
         <div class="user-avatar" id="user-avatar">?</div>
-        <div class="user-info">
-          <div class="user-name" id="user-name">...</div>
-          <div class="user-role-label" id="user-role-label"></div>
-        </div>
+        <div class="user-name" id="user-name">...</div>
       </div>
     </div>
   </header>
 
   <!-- User dropdown -->
   <div class="user-menu" id="user-menu">
-    <div class="user-menu-profile">
-      <div class="user-menu-avatar" id="user-menu-avatar">?</div>
-      <div>
-        <div class="user-menu-name" id="user-menu-name">...</div>
-        <div class="user-menu-role" id="user-menu-role"></div>
-      </div>
-    </div>
-    <div class="user-menu-divider"></div>
     <div class="user-menu-item" onclick="showPage('settings');toggleUserMenu()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
       Réglages
@@ -101,8 +83,6 @@
   </div>
 
   <div id="conn-banner" class="conn-banner">⚠ Connexion perdue</div>
-
-  <!-- Widget HC countdown -->
   <div id="hc-countdown" class="hc-countdown" style="display:none">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     <span id="hc-countdown-text"></span>
@@ -138,8 +118,8 @@
         </div>
       </div>
       <div class="session-grid">
-        <div class="session-cell"><div class="session-cell-val green" id="live-kwh">0.000</div><div class="session-cell-lbl">kWh chargés</div></div>
-        <div class="session-cell"><div class="session-cell-val amber" id="live-cost">0.00 €</div><div class="session-cell-lbl">Coût estimé</div></div>
+        <div class="session-cell"><div class="session-cell-val" id="live-kwh">0.000</div><div class="session-cell-lbl">kWh chargés</div></div>
+        <div class="session-cell"><div class="session-cell-val" id="live-cost">0.00 €</div><div class="session-cell-lbl">Coût estimé</div></div>
         <div class="session-cell"><div class="session-cell-val" id="live-duration">—</div><div class="session-cell-lbl">Durée</div></div>
         <div class="session-cell"><div class="session-cell-val" id="live-tarif">—</div><div class="session-cell-lbl">Tarif actif</div></div>
       </div>
@@ -159,6 +139,11 @@
       <div class="stats-card"><div class="stats-card-val" id="stat-cost">—</div><div class="stats-card-lbl">Total €</div></div>
     </div>
 
+    <div class="monthly-card">
+      <div class="chart-title">kWh par mois</div>
+      <div class="chart-wrapper-lg"><canvas id="monthlyChart"></canvas></div>
+    </div>
+
     <button class="export-btn" onclick="exportCSV()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Exporter CSV
@@ -169,77 +154,16 @@
     </div>
   </div>
 
-  <!-- ── PAGE STATS ─────────────────────────────────────────────────────── -->
-  <div id="page-stats" class="page">
-
-    <!-- Sélecteur de mois -->
-    <div class="month-selector">
-      <button class="month-nav-btn" onclick="changeMonth(-1)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <span class="month-label" id="month-label">—</span>
-      <button class="month-nav-btn" onclick="changeMonth(+1)" id="month-next-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-    </div>
-
-    <!-- Résumé mensuel -->
-    <div class="stats-bar" id="monthly-summary">
-      <div class="stats-card"><div class="stats-card-val" id="ms-kwh">—</div><div class="stats-card-lbl">kWh ce mois</div></div>
-      <div class="stats-card"><div class="stats-card-val" id="ms-cost">—</div><div class="stats-card-lbl">Coût (€)</div></div>
-      <div class="stats-card"><div class="stats-card-val" id="ms-sessions">—</div><div class="stats-card-lbl">Sessions</div></div>
-    </div>
-
-    <!-- Graphique kWh par semaine -->
-    <div class="monthly-card">
-      <div class="chart-title-row">
-        <div class="chart-title">kWh par semaine</div>
-        <div class="chart-legend">
-          <span class="legend-dot hc"></span><span>HC</span>
-          <span class="legend-dot hp"></span><span>HP</span>
-        </div>
-      </div>
-      <div class="chart-wrapper-lg"><canvas id="weeklyChart"></canvas></div>
-    </div>
-
-    <!-- Graphique tendance mensuelle (12 mois) -->
-    <div class="monthly-card">
-      <div class="chart-title">Tendance 12 mois</div>
-      <div class="chart-wrapper-lg"><canvas id="monthlyChart"></canvas></div>
-    </div>
-
-  </div>
-
   <!-- ── PAGE SETTINGS ─────────────────────────────────────────────────── -->
   <div id="page-settings" class="page">
-
-    <!-- Profil utilisateur -->
     <div class="profile-card">
       <div class="profile-avatar" id="profile-avatar-big">?</div>
-      <div class="profile-info">
+      <div style="flex:1">
         <div class="profile-name" id="profile-name">Chargement...</div>
-        <div class="profile-sub" id="profile-username"></div>
-        <span class="role-badge" id="profile-role-badge">user</span>
+        <div class="profile-role" id="profile-role">Home Assistant</div>
       </div>
     </div>
-
-    <div class="settings-section">
-      <div class="settings-title">Apparence</div>
-      <div class="theme-selector">
-        <button class="theme-opt" data-theme-val="light" onclick="setThemeChoice('light')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          Clair
-        </button>
-        <button class="theme-opt" data-theme-val="dark" onclick="setThemeChoice('dark')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          Sombre
-        </button>
-        <button class="theme-opt" data-theme-val="system" onclick="setThemeChoice('system')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Système
-        </button>
-      </div>
-    </div>
+    <div id="profile-stats" class="profile-stats-grid"></div>
 
     <div class="settings-section">
       <div class="settings-title">Tarifs électricité</div>
@@ -269,7 +193,7 @@
     </div>
 
     <div style="margin-top:20px;text-align:center;font-size:11px;color:var(--text-3)">
-      EV Charger PWA v3.0 · PropalC · OAuth2 HA
+      EV Charger PWA v2.0 · OAuth2 HA
     </div>
   </div>
 
@@ -283,10 +207,6 @@
   <button class="bottom-btn" data-page="history">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Historique</span>
-  </button>
-  <button class="bottom-btn" data-page="stats">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
-    <span>Stats</span>
   </button>
   <button class="bottom-btn" data-page="settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
