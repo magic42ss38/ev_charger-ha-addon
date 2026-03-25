@@ -1,5 +1,5 @@
 """
-EV Charger PWA - FastAPI Backend v3.0
+EV Charger PWA - FastAPI Backend v3.2.3
 PropalC : OAuth2 HA + Session FastAPI étendue
 - Rôle HA (propriétaire / admin / utilisateur)
 - Stats hebdomadaires (kWh par semaine d'un mois)
@@ -331,7 +331,7 @@ async def auth_callback(code: str, state: str, request: Request):
     user_id = user_name = user_display = None
     ha_role = "user"
     try:
-        profile = await ha_get("config/auth/current_user", ha_access_token)
+        profile = await ha_get("auth/current_user", ha_access_token)
         user_id      = profile.get("id", "unknown")
         user_name    = profile.get("username", "user")
         user_display = profile.get("name") or user_name

@@ -30,3 +30,12 @@
 - Export CSV amélioré (BOM UTF-8, compatible Excel)
 - Widget "prochaine heure creuse dans X minutes"
 - Auth OAuth2 HA native (zéro mot de passe)
+
+---
+
+## v3.2.3 (2026-03-25)
+### 🔴 Fixes critiques (boucle d'authentification)
+- **sw.js** : Le Service Worker mettait `/auth/check` en cache → après OAuth, il renvoyait toujours `{authenticated: false}` → boucle infinie `/auth/login`. Fix : `/auth/*` et `/api/*` sont désormais **network-only** (jamais mis en cache)
+- **sw.js** : Correction du `TypeError: Cache.put() POST unsupported` — seules les requêtes GET avec status 200 sont désormais mises en cache
+- **main.py** : Correction du endpoint HA API : `/api/config/auth/current_user` (404) → `/api/auth/current_user` (correct)
+- **sw.js** : Nouveau `CACHE_NAME = 'ev-charger-v2'` pour forcer l'invalidation de l'ancien cache au déploiement
