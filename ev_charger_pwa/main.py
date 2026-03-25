@@ -77,6 +77,16 @@ async def init_db():
             await db.execute("ALTER TABLE user_sessions ADD COLUMN ha_role TEXT DEFAULT 'user'")
         except Exception:
             pass
+        # Migration : ajouter user_id à sessions si absente (upgrade depuis v2)
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN user_id TEXT")
+        except Exception:
+            pass
+        # Migration : ajouter notes à sessions si absente
+        try:
+            await db.execute("ALTER TABLE sessions ADD COLUMN notes TEXT")
+        except Exception:
+            pass
         await db.execute("""
             CREATE TABLE IF NOT EXISTS user_prefs (
                 user_id TEXT PRIMARY KEY,

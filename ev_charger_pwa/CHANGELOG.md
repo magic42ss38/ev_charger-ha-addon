@@ -39,3 +39,9 @@
 - **sw.js** : Correction du `TypeError: Cache.put() POST unsupported` — seules les requêtes GET avec status 200 sont désormais mises en cache
 - **main.py** : Correction du endpoint HA API : `/api/config/auth/current_user` (404) → `/api/auth/current_user` (correct)
 - **sw.js** : Nouveau `CACHE_NAME = 'ev-charger-v2'` pour forcer l'invalidation de l'ancien cache au déploiement
+
+---
+
+## v3.2.4 (2026-03-25)
+### 🔴 Fix critique — crash 500 /api/status
+- **main.py** : Migration SQLite manquante : la table `sessions` créée en v2 n'avait pas la colonne `user_id`. Ajout de `ALTER TABLE sessions ADD COLUMN user_id TEXT` (et `notes TEXT`) au démarrage — rétrocompatible avec les DB existantes
