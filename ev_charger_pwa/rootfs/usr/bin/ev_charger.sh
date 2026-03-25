@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 
-bashio::log.info "Démarrage EV Charger PWA v3.0..."
+bashio::log.info "Démarrage EV Charger PWA v3.2.8..."
 
 export HA_TOKEN=$(bashio::config 'ha_token')
 export HA_URL=$(bashio::config 'ha_url')
@@ -21,6 +21,8 @@ bashio::log.info "PWA URL (= OAuth client_id): ${OAUTH_CLIENT_ID}"
 bashio::log.info "HA public: ${HA_URL}"
 bashio::log.info "OAuth redirect: ${OAUTH_REDIRECT_URI}"
 bashio::log.info "Switch: ${SWITCH_ENTITY} | HP: ${TARIF_HP}€ | HC: ${TARIF_HC}€"
+bashio::log.info "Sensor puissance : ${POWER_SENSOR}"
+bashio::log.info "Sensor énergie   : ${ENERGY_SENSOR}"
 
 cd /app
 exec uvicorn main:app --host 0.0.0.0 --port 8765 --workers 1

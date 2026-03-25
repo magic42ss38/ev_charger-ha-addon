@@ -703,7 +703,9 @@ async function loadSettings() {
     const es = $('display-energy-sensor');
     if (ps && cfg.power_sensor) ps.textContent = cfg.power_sensor;
     if (es && cfg.energy_sensor) es.textContent = cfg.energy_sensor;
-  } catch(e) { /* silencieux */ }
+    const fv = document.getElementById('footer-version');
+    if (fv && cfg.pwa_version) fv.textContent = 'v' + cfg.pwa_version;
+  } catch(e) { console.warn('[config]', e); }
   if (!state.user) return;
   renderUserBadge(state.user);
   try {

@@ -431,13 +431,13 @@ async def get_me(session=Depends(get_session)):
 
 
 @app.get("/api/config")
-async def get_config(session=Depends(get_session)):
+async def get_config():
     """Retourne la configuration publique (entités, etc.) pour l'UI."""
     return {
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.7"
+        "pwa_version":   "3.2.8"
     }
 
 @app.get("/api/status")
@@ -505,6 +505,10 @@ async def switch_on(session=Depends(get_session)):
     await close_active_session(session["user_id"], ha_tok)
     await ha_post("services/switch/turn_on", {"entity_id": SWITCH_ENTITY}, ha_tok)
     energy_start = await get_energy_value(ha_tok)
+    if energy_start is None:
+        logger.warning(f"energy_start=None: sensor '{ENERGY_SENSOR}' indisponible ou inconnu. Les kWh de session ne seront pas calculés.")
+    else:
+        logger.info(f"Session démarrée, energy_start={energy_start} kWh ({ENERGY_SENSOR})")
     hp = prefs.get("tarif_hp") or TARIF_HP
     hc = prefs.get("tarif_hc") or TARIF_HC
     hs = prefs.get("hc_start") or HC_START
