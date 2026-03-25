@@ -461,38 +461,50 @@ document.addEventListener('click', e => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
-  // Thème
-  applyTheme(state.theme);
+  try {
+    // Thème en premier — évite le flash blanc
+    applyTheme(state.theme);
 
-  // Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js', {scope:'/'}).catch(()=>{});
-  }
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', {scope:'/'}).catch(()=>{});
+    }
 
-  // Navigation
-  document.querySelectorAll('[data-page]').forEach(btn => {
-    btn.addEventListener('click', () => showPage(btn.dataset.page));
-  });
-  $('switch-btn').addEventListener('click', toggleSwitch);
-  $('btn-save').addEventListener('click', saveSettings);
+    // Navigation bottom bar (toujours présente dans le DOM)
+    document.querySelectorAll('[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => showPage(btn.dataset.page));
+    });
 
-  // Vérifier auth
-  const isAuth = await checkAuth();
-  if (!isAuth) {
+    // Vérifier auth AVANT de toucher aux éléments de #app (qui est hidden)
+    const isAuth = await checkAuth();
+    if (!isAuth) {
+      showLoginScreen();
+      return;
+    }
+
+    // Afficher l'app — les éléments de #app sont maintenant dans le DOM visible
+    showApp();
+
+    // Attacher les listeners APRÈS showApp (éléments accessibles)
+    const switchBtn = $('switch-btn');
+    if (switchBtn) switchBtn.addEventListener('click', toggleSwitch);
+    const saveBtn = $('btn-save');
+    if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+
+    renderUserBadge(state.user);
+
+    // Goto post-reload
+    const goto = sessionStorage.getItem('ev_goto');
+    if (goto) { sessionStorage.removeItem('ev_goto'); showPage(goto); }
+    else { showPage('home'); }
+
+    startPolling();
+
+  } catch(e) {
+    // Erreur JS → afficher login plutôt que page blanche
+    console.error('Init error:', e);
     showLoginScreen();
-    return;
   }
-
-  // Afficher l'app
-  showApp();
-  renderUserBadge(state.user);
-
-  // Goto post-reload
-  const goto = sessionStorage.getItem('ev_goto');
-  if (goto) { sessionStorage.removeItem('ev_goto'); showPage(goto); }
-  else { showPage('home'); }
-
-  startPolling();
 }
 
 document.addEventListener('DOMContentLoaded', init);

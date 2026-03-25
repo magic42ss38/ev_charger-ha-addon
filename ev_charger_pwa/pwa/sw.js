@@ -1,5 +1,5 @@
 /* EV Charger PWA - Service Worker v1.0 - subdomain edition */
-const CACHE_NAME = 'ev-charger-v1';
+const CACHE_NAME = 'ev-charger-v3.1.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
