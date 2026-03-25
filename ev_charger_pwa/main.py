@@ -234,7 +234,14 @@ class ProxyHeadersMiddleware(BaseHTTPMiddleware):
         proto = request.headers.get("x-forwarded-proto")
         if proto:
             request.scope["scheme"] = proto
-        return await call_next(request)
+        response = await call_next(request)
+        # HA OAuth2 : retourner le header Link sur / et /index.html
+        # pour valider que le client_id (= PWA_URL) est légitime
+        if request.url.path in ("/", "/index.html", ""):
+            redirect_uri = os.getenv("OAUTH_REDIRECT_URI",
+                f"{PWA_URL}/auth/callback")
+            response.headers["Link"] = f'<{redirect_uri}>; rel="redirect_uri"'
+        return response
 
 async def get_session(request: Request) -> dict:
     token = request.cookies.get("ev_session")

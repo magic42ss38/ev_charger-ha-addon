@@ -1,4 +1,6 @@
 # Changelog
+## 3.1
+- debug authentification
 ## 3.0.1
 - debug authentification
 ## 2.0.2
