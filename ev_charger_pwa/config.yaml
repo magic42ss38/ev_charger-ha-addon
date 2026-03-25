@@ -1,7 +1,7 @@
 ---
 name: "EV Charger PWA"
 description: "PWA recharge voiture - Option C : OAuth2 HA + profil DB par utilisateur"
-version: "3.0.1"
+version: "3.1.0"
 slug: "ev_charger_pwa"
 init: false
 arch:
