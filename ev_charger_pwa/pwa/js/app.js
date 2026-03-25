@@ -1,4 +1,64 @@
 /* EV Charger PWA v3 — PropalC : OAuth2 HA + Sessions + Stats hebdo + Rôle HA */
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PWA INSTALL — gestion du prompt d'installation natif + iOS
+// ═══════════════════════════════════════════════════════════════════════════════
+let _deferredInstallPrompt = null;
+
+// Capture du prompt Android/Chrome
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+
+// L'app est installée → cacher le bouton
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'none';
+});
+
+function isIOS() {
+  return /iP(hone|ad|od)/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function isInStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function installPWA() {
+  if (_deferredInstallPrompt) {
+    // Android / Chrome Desktop
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then((result) => {
+      if (result.outcome === 'accepted') {
+        _deferredInstallPrompt = null;
+        const btn = document.getElementById('install-btn');
+        if (btn) btn.style.display = 'none';
+      }
+    });
+  } else if (isIOS()) {
+    // iOS → afficher les instructions
+    const modal = document.getElementById('ios-install-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+}
+
+function closeIOSModal() {
+  const modal = document.getElementById('ios-install-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Sur iOS, si pas encore installée, afficher le bouton install
+document.addEventListener('DOMContentLoaded', () => {
+  if (isIOS() && !isInStandaloneMode()) {
+    const btn = document.getElementById('install-btn');
+    if (btn) btn.style.display = 'flex';
+  }
+});
+
 'use strict';
 
 // ─── State ────────────────────────────────────────────────────────────────────

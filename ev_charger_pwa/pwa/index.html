@@ -66,6 +66,13 @@
           <path d="M12 2a10 10 0 0 1 0 20V2z" fill="currentColor" opacity=".4"/>
         </svg>
       </button>
+      <button class="install-btn" id="install-btn" onclick="installPWA()" title="Installer l'application" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
       <div class="user-badge" onclick="toggleUserMenu()">
         <div class="user-avatar" id="user-avatar">?</div>
         <div class="user-info">
@@ -297,5 +304,25 @@
 
 <div id="toast" class="toast"></div>
 <script src="/js/app.js"></script>
+
+<!-- Modal iOS install instructions -->
+<div id="ios-install-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeIOSModal()">
+  <div class="modal-card">
+    <div class="modal-header">
+      <span class="modal-title">📱 Installer l'application</span>
+      <button class="modal-close" onclick="closeIOSModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:1rem">Pour installer EV Charge sur votre iPhone / iPad :</p>
+      <ol style="line-height:2rem; padding-left:1.2rem">
+        <li>Appuyez sur <strong>Partager</strong> <span style="font-size:1.2em">⬆️</span> dans Safari</li>
+        <li>Faites défiler et appuyez sur <strong>"Sur l'écran d'accueil"</strong></li>
+        <li>Appuyez sur <strong>Ajouter</strong></li>
+      </ol>
+      <p style="margin-top:1rem; font-size:0.85rem; opacity:0.7">⚠️ Utilisez Safari — Chrome iOS ne supporte pas l'installation.</p>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

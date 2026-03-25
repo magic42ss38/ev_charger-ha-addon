@@ -1,47 +1,67 @@
 # Changelog — EV Charger PWA
 
-## v3.2.2 (2026-03-25)
-### 🔴 Fixes critiques
-- **OAUTH_CLIENT_ID** : corrigé — désormais lu depuis l'option `pwa_url` de config.yaml
-  (HA OAuth2 exige que client_id soit l'URL publique de l'application, pas un slug)
-- **configuration.yaml** : suppression de `base_url` (déprécié depuis HA 2021.7)
-- **trusted_proxies** : ajout de `192.168.1.0/24` (réseau LAN, NGINX Proxy Manager)
-- **ev_charger.sh** : version log mise à jour v3.0
+## [3.2.5] — 2026-03-25
+### Ajouté
+- 📱 Bouton d'installation PWA dans le header
+  - Android/Chrome : prompt natif du navigateur
+  - iOS/Safari : guide illustré en 3 étapes
+  - Masqué automatiquement si l'app est déjà installée
+- 🔄 Nouveau cache Service Worker `ev-charger-v3` avec purge automatique de l'ancien cache
 
-### 🆕 Nouvelle option config.yaml
-- `pwa_url` : URL publique de la PWA (ex: `https://pwa.domotique-nicof73.ovh`)
-
----
-
-## v3.2.1 (2026-03-24)
-### Fixes
-- Correction `updateThemeIcon` null-safe (TypeError sur DOM non prêt)
-- Meta `mobile-web-app-capable` ajoutée (remplacement de la version dépréciée)
-- URL-encoding correct des paramètres OAuth (`urllib.parse.urlencode`)
-- Route `GET /favicon.ico` explicite (évite 403 de StaticFiles)
+### Corrigé
+- Version affichée correctement dans les logs au démarrage
 
 ---
 
-## v3.0.0 (2026-03-23)
-### Nouvelles fonctionnalités
-- Badge utilisateur avec initiales colorées + rôle HA (👑 Propriétaire / 🛡 Admin / 👤 Utilisateur)
-- Thème sombre/clair auto (prefers-color-scheme) + toggle manuel
-- Page Stats mensuelle avec graphique kWh par semaine (HC/HP)
-- Export CSV amélioré (BOM UTF-8, compatible Excel)
-- Widget "prochaine heure creuse dans X minutes"
-- Auth OAuth2 HA native (zéro mot de passe)
+## [3.2.4] — 2026-03-24
+### Corrigé
+- 🐛 Crash 500 sur `/api/status` → `sqlite3.OperationalError: no such column: user_id`
+  - Ajout migration `ALTER TABLE sessions ADD COLUMN user_id TEXT` (idempotente)
+  - Ajout migration `ALTER TABLE sessions ADD COLUMN notes TEXT` (idempotente)
+  - La DB existante créée en v2 sans ces colonnes bloquait toute requête authentifiée
 
 ---
 
-## v3.2.3 (2026-03-25)
-### 🔴 Fixes critiques (boucle d'authentification)
-- **sw.js** : Le Service Worker mettait `/auth/check` en cache → après OAuth, il renvoyait toujours `{authenticated: false}` → boucle infinie `/auth/login`. Fix : `/auth/*` et `/api/*` sont désormais **network-only** (jamais mis en cache)
-- **sw.js** : Correction du `TypeError: Cache.put() POST unsupported` — seules les requêtes GET avec status 200 sont désormais mises en cache
-- **main.py** : Correction du endpoint HA API : `/api/config/auth/current_user` (404) → `/api/auth/current_user` (correct)
-- **sw.js** : Nouveau `CACHE_NAME = 'ev-charger-v2'` pour forcer l'invalidation de l'ancien cache au déploiement
+## [3.2.3] — 2026-03-23
+### Corrigé
+- 🔐 Boucle d'authentification infinie → le Service Worker ne met plus en cache `/auth/check`
+- 🚫 Erreur SW `TypeError: Failed to execute 'put' on 'Cache': Request method 'POST' is unsupported`
+  - Les requêtes POST sont désormais exclues du cache
+- ✅ Endpoint HA corrigé : `/api/config/auth/current_user` → `/api/auth/current_user`
 
 ---
 
-## v3.2.4 (2026-03-25)
-### 🔴 Fix critique — crash 500 /api/status
-- **main.py** : Migration SQLite manquante : la table `sessions` créée en v2 n'avait pas la colonne `user_id`. Ajout de `ALTER TABLE sessions ADD COLUMN user_id TEXT` (et `notes TEXT`) au démarrage — rétrocompatible avec les DB existantes
+## [3.2.2] — 2026-03-22
+### Corrigé
+- 🔑 OAuth `client_id` corrigé → utilise l'URL complète `https://pwa.domotique-nicof73.ovh`
+  (l'ancienne valeur courte `"ev_charger"` provoquait des erreurs 403 et le ban IP automatique de HA)
+- 🗑️ Suppression de `base_url` dans la configuration HA (option dépréciée)
+- 🌐 Ajout de `192.168.1.0/24` dans `trusted_proxies` pour les requêtes LAN
+- 📝 Mise à jour des chaînes de version dans `config.yaml` et `main.py`
+
+---
+
+## [3.2.1] — 2026-03-21
+### Analysé
+- 🔍 Review complète du package de déploiement fourni
+- 4 bugs de configuration identifiés (corrigés en v3.2.2)
+
+---
+
+## [2.0.0] — version de base
+### Fonctionnalités initiales
+- Authentification OAuth2 via Home Assistant
+- Stockage des sessions en SQLite avec support multi-utilisateurs
+- Contrôle du switch `switch.prise_voiture`
+- Rôles utilisateurs (Owner / Admin / User) issus de HA
+- Badge utilisateur avec initiales colorées
+- Thème clair/sombre avec détection des préférences système
+- Page statistiques mensuelles (graphe kWh par semaine)
+- Export CSV des sessions
+- Widget "prochain créneau heure creuse dans X minutes"
+- Service Worker pour fonctionnement offline
+
+---
+
+*Projet : EV Charger PWA — Home Assistant Addon*
+*Auteur : NicoF73*
