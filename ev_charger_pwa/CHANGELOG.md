@@ -1,30 +1,32 @@
-# Changelog
-## 3.2.0
-- still debug authentification
-## 3.1.1
-- icon modif
-## 3.1
-- debug authentification
-## 3.0.1
-- debug authentification
-## 2.0.2
-- Add icon for addon
-## 2.0.1
-- bug navigation between pages
-- - change icons (appli + HA addon)
-## 2.0.0
-- New interface / new authentication
-- bug correction
-## 1.0.6
-- Still debug for PWA access (modif index.html)
-- add changelog
-- modif config.yaml (version)
-## 1.0.5
-- bug fix after the way to access to the pwa
-- Dev / fix bugs
-## 1.0.4
-## 1.0.2
-## 1.0.2
-## 1.0.1
-## 1.0.0
-- Initial release
+# Changelog — EV Charger PWA
+
+## v3.2.2 (2026-03-25)
+### 🔴 Fixes critiques
+- **OAUTH_CLIENT_ID** : corrigé — désormais lu depuis l'option `pwa_url` de config.yaml
+  (HA OAuth2 exige que client_id soit l'URL publique de l'application, pas un slug)
+- **configuration.yaml** : suppression de `base_url` (déprécié depuis HA 2021.7)
+- **trusted_proxies** : ajout de `192.168.1.0/24` (réseau LAN, NGINX Proxy Manager)
+- **ev_charger.sh** : version log mise à jour v3.0
+
+### 🆕 Nouvelle option config.yaml
+- `pwa_url` : URL publique de la PWA (ex: `https://pwa.domotique-nicof73.ovh`)
+
+---
+
+## v3.2.1 (2026-03-24)
+### Fixes
+- Correction `updateThemeIcon` null-safe (TypeError sur DOM non prêt)
+- Meta `mobile-web-app-capable` ajoutée (remplacement de la version dépréciée)
+- URL-encoding correct des paramètres OAuth (`urllib.parse.urlencode`)
+- Route `GET /favicon.ico` explicite (évite 403 de StaticFiles)
+
+---
+
+## v3.0.0 (2026-03-23)
+### Nouvelles fonctionnalités
+- Badge utilisateur avec initiales colorées + rôle HA (👑 Propriétaire / 🛡 Admin / 👤 Utilisateur)
+- Thème sombre/clair auto (prefers-color-scheme) + toggle manuel
+- Page Stats mensuelle avec graphique kWh par semaine (HC/HP)
+- Export CSV amélioré (BOM UTF-8, compatible Excel)
+- Widget "prochaine heure creuse dans X minutes"
+- Auth OAuth2 HA native (zéro mot de passe)
