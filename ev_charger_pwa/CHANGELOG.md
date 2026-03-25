@@ -1,4 +1,6 @@
 # Changelog
+## 3.1.1
+- icon modif
 ## 3.1
 - debug authentification
 ## 3.0.1
