@@ -699,13 +699,16 @@ async function loadSettings() {
   // Afficher les vraies entités configurées
   try {
     const cfg = await api('/api/config');
+    console.log('[config] Réponse API:', cfg);
+    const sw = $('display-switch-entity');
     const ps = $('display-power-sensor');
     const es = $('display-energy-sensor');
-    if (ps && cfg.power_sensor) ps.textContent = cfg.power_sensor;
-    if (es && cfg.energy_sensor) es.textContent = cfg.energy_sensor;
-    const fv = document.getElementById('footer-version');
+    if (sw) sw.textContent = cfg.switch_entity || '(non configuré)';
+    if (ps) ps.textContent = cfg.power_sensor  || '(non configuré)';
+    if (es) es.textContent = cfg.energy_sensor || '(non configuré)';
+    const fv = $('footer-version');
     if (fv && cfg.pwa_version) fv.textContent = 'v' + cfg.pwa_version;
-  } catch(e) { console.warn('[config]', e); }
+  } catch(e) { console.warn('[config] ERREUR:', e); }
   if (!state.user) return;
   renderUserBadge(state.user);
   try {

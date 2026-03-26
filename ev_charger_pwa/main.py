@@ -26,9 +26,10 @@ logger = logging.getLogger(__name__)
 # ─── Config ───────────────────────────────────────────────────────────────────
 HA_URL        = os.getenv("HA_URL", "https://ha.domotique-nicof73.ovh")
 HA_TOKEN      = os.getenv("HA_TOKEN", "")
-SWITCH_ENTITY = os.getenv("SWITCH_ENTITY", "switch.prise_voiture")
-POWER_SENSOR  = os.getenv("POWER_SENSOR",  "sensor.puissance_voiture2")
-ENERGY_SENSOR = os.getenv("ENERGY_SENSOR", "sensor.energy_voiture")
+# Fix v3.2.9 : si l'env var est vide (options.json non configuré), on utilise le bon défaut
+SWITCH_ENTITY = os.getenv("SWITCH_ENTITY", "").strip() or "switch.prise_voiture"
+POWER_SENSOR  = os.getenv("POWER_SENSOR",  "").strip() or "sensor.prise_voiture_puissance_2"
+ENERGY_SENSOR = os.getenv("ENERGY_SENSOR", "").strip() or "sensor.prise_voiture_energy"
 TARIF_HP      = float(os.getenv("TARIF_HP", "0.2516"))
 TARIF_HC      = float(os.getenv("TARIF_HC", "0.1654"))
 HC_START      = os.getenv("HC_START", "22:00")
@@ -199,6 +200,24 @@ async def close_active_session(user_id: str = None, token: str = None):
                 kwh = max(0, energy_end - e_start)
                 tv = TARIF_HC if t_mode == "HC" else TARIF_HP
                 cost = round(kwh * tv, 4)
+            elif e_start is None:
+                # Fix v3.2.9 : fallback kWh via puissance × durée si energy_start était NULL
+                try:
+                    row2 = await db.execute("SELECT start_time FROM sessions WHERE id=?", (sid,))
+                    r2 = await row2.fetchone()
+                    if r2:
+                        from datetime import datetime as _dt
+                        t_start = _dt.fromisoformat(r2[0])
+                        duration_h = (datetime.now() - t_start).total_seconds() / 3600
+                        # Lire la puissance instantanée actuelle comme approximation
+                        pwr = await get_entity_state(POWER_SENSOR)
+                        pwr_w = float(pwr.get("state", 0)) if pwr else 0
+                        kwh = round(pwr_w / 1000 * duration_h, 4)
+                        tv = TARIF_HC if t_mode == "HC" else TARIF_HP
+                        cost = round(kwh * tv, 4)
+                        logger.warning(f"energy_start=NULL: kWh estimé via puissance ({pwr_w}W × {duration_h:.2f}h = {kwh} kWh)")
+                except Exception as ex:
+                    logger.warning(f"Fallback kWh échoué: {ex}")
             await db.execute("""UPDATE sessions SET end_time=?,energy_end=?,
                 energy_kwh=?,cost=?,status='completed' WHERE id=?""",
                 (datetime.now().isoformat(), energy_end, kwh, cost, sid))
@@ -437,7 +456,7 @@ async def get_config():
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.8"
+        "pwa_version":   "3.2.9"
     }
 
 @app.get("/api/status")

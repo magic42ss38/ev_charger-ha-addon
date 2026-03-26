@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 
-bashio::log.info "Démarrage EV Charger PWA v3.2.8..."
+bashio::log.info "Démarrage EV Charger PWA v3.2.9..."
 
 export HA_TOKEN=$(bashio::config 'ha_token')
 export HA_URL=$(bashio::config 'ha_url')
