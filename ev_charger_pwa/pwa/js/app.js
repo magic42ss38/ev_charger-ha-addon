@@ -1,7 +1,7 @@
 /* EV Charger PWA v3 — PropalC : OAuth2 HA + Sessions + Stats hebdo + Rôle HA */
 
-const APP_VERSION = "3.2.20";
-const SW_VERSION  = "v14";
+const APP_VERSION = "3.2.21";
+const SW_VERSION  = "v15";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PWA INSTALL — gestion du prompt d'installation natif + iOS
@@ -156,7 +156,8 @@ function showLoginScreen() {
   $('login-screen').style.display = 'flex';
   $('app').style.display = 'none';
   $('bottom-nav').style.display = 'none';
-  hideVersionBar();
+  // Version bar visible aussi sur l'écran de login
+  showVersionBar();
   if (state.poll_interval) { clearInterval(state.poll_interval); state.poll_interval = null; }
 }
 
@@ -164,24 +165,15 @@ function showApp() {
   $('login-screen').style.display = 'none';
   $('app').style.display = 'block';
   $('bottom-nav').style.display = 'flex';
-  // Afficher la barre de version sur toutes les pages
-  const vbar = $('version-bar');
-  if (vbar) {
-    // Récupérer la version SW active depuis le service worker
-    let swVer = SW_VERSION;
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      const swUrl = navigator.serviceWorker.controller.scriptURL || '';
-      const m = swUrl.match(/sw\.js/);
-      // On utilise la constante définie dans sw.js via cache name
-    }
-    vbar.textContent = `v${APP_VERSION} · SW ${swVer}`;
-    vbar.style.display = 'block';
-  }
+  showVersionBar();
 }
 
-function hideVersionBar() {
+function showVersionBar() {
   const vbar = $('version-bar');
-  if (vbar) vbar.style.display = 'none';
+  if (vbar) {
+    vbar.textContent = `v${APP_VERSION} · SW ${SW_VERSION}`;
+    vbar.style.display = 'block';
+  }
 }
 
 async function doLogin(e) {
@@ -201,16 +193,14 @@ async function doLogin(e) {
     });
     if (res.ok) {
       const data = await res.json();
-      // Mettre à jour l'état utilisateur directement (pas besoin de re-vérifier l'auth)
-      state.user = { display_name: data.display_name || name, ha_role: 'admin' };
+      // Mettre à jour l'état utilisateur directement — NE PAS appeler /api/me ici
+      // car le cookie vient d'être posé et n'est pas encore envoyé par le navigateur
+      state.user = {
+        display_name: data.display_name || name,
+        user_name:    data.display_name || name,
+        ha_role:      'admin'
+      };
       showApp();
-      // Charger les préférences supplémentaires depuis /api/me
-      try {
-        const me = await api('/api/me');
-        if (me?.theme) applyTheme(me.theme);
-        if (me?.ha_role) state.user.ha_role = me.ha_role;
-        Object.assign(state.user, me);
-      } catch { /* ignore */ }
       renderUserBadge(state.user);
       state.currentMonth = nowMonth();
       showPage('home');

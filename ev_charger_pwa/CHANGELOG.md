@@ -1,5 +1,19 @@
 # Changelog — EV Charger PWA
 
+## v3.2.21 — Fix login + version sur toutes les pages
+
+**Bug critique corrigé** : après login réussi, l'app repassait en mode "Erreur de connexion" sans refresh.
+
+**Cause** : immédiatement après `/auth/login`, le cookie de session venait d'être posé mais n'était pas encore envoyé par le navigateur pour la requête suivante. L'appel `api('/api/me')` retournait 401, ce qui déclenchait silencieusement `showLoginScreen()` et masquait l'app.
+
+**Corrections** :
+- `doLogin()` : suppression de l'appel `api('/api/me')` post-login — toutes les données nécessaires sont déjà dans la réponse de `/auth/login`
+- Version bar affichée sur **toutes** les pages, y compris l'écran de login (était masquée avant)
+- `showVersionBar()` refactorisé (remplace `hideVersionBar()`)
+
+**Service Worker** : v15
+
+
 ## v3.2.20 — Affichage version sur toutes les pages
 
 **Fonctionnalité** : barre de version discrète visible sur toutes les pages de l'application.

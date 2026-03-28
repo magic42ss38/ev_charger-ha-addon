@@ -1,7 +1,7 @@
 ---
 name: "EV Charger PWA"
 description: "PWA de gestion recharge voiture - Auth mot de passe + Long-Live Token HA"
-version: "3.2.20"
+version: "3.2.21"
 slug: "ev_charger_pwa"
 init: false
 arch:

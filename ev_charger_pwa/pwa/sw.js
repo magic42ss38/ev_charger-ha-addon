@@ -1,5 +1,5 @@
 /* EV Charger PWA - Service Worker v1.2 - Fix auth caching loop */
-const CACHE_NAME = 'ev-charger-v14';
+const CACHE_NAME = 'ev-charger-v15';
 const STATIC_ASSETS = [
   '/index.html',
   '/css/style.css',
