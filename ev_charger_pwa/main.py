@@ -182,10 +182,10 @@ async def get_energy_value(token: str = None):
     except (ValueError, KeyError):
         return None
 
-async def close_active_session(user_id: str = None, token: str = None):
+async def close_active_session(user_id: str = None, token: str = None, last_power_w: float = None):
     energy_end = await get_energy_value(token)
     async with aiosqlite.connect(DB_PATH) as db:
-        q = "SELECT id,energy_start,tarif_mode FROM sessions WHERE status='active'"
+        q = "SELECT id,energy_start,tarif_mode,start_time FROM sessions WHERE status='active'"
         params = []
         if user_id:
             q += " AND user_id=?"
@@ -194,30 +194,44 @@ async def close_active_session(user_id: str = None, token: str = None):
         async with db.execute(q, params) as cur:
             row = await cur.fetchone()
         if row:
-            sid, e_start, t_mode = row
+            sid, e_start, t_mode, start_time = row
             kwh = cost = None
+            tv = TARIF_HC if t_mode == "HC" else TARIF_HP
+
+            # Calcul durée (utile pour fallback)
+            try:
+                from datetime import datetime as _dt
+                t_start = _dt.fromisoformat(start_time)
+                duration_h = (datetime.now() - t_start).total_seconds() / 3600
+            except Exception:
+                duration_h = 0
+
             if e_start is not None and energy_end is not None:
                 kwh = max(0, energy_end - e_start)
-                tv = TARIF_HC if t_mode == "HC" else TARIF_HP
                 cost = round(kwh * tv, 4)
-            elif e_start is None:
-                # Fix v3.2.9 : fallback kWh via puissance × durée si energy_start était NULL
-                try:
-                    row2 = await db.execute("SELECT start_time FROM sessions WHERE id=?", (sid,))
-                    r2 = await row2.fetchone()
-                    if r2:
-                        from datetime import datetime as _dt
-                        t_start = _dt.fromisoformat(r2[0])
-                        duration_h = (datetime.now() - t_start).total_seconds() / 3600
-                        # Lire la puissance instantanée actuelle comme approximation
+                # Si le capteur énergie n'a pas bougé (mise à jour lente) ET on a la puissance
+                # → utiliser le fallback puissance × durée si plus grand
+                if kwh == 0 and last_power_w and last_power_w > 0 and duration_h > 0:
+                    kwh_est = round(last_power_w / 1000 * duration_h, 4)
+                    cost_est = round(kwh_est * tv, 4)
+                    logger.warning(f"energy_end=energy_start ({e_start} kWh, capteur lent?): fallback puissance {last_power_w}W × {duration_h:.3f}h = {kwh_est} kWh")
+                    kwh = kwh_est
+                    cost = cost_est
+
+            if kwh is None or kwh == 0:
+                # Fallback: energy_start=NULL ou kWh=0 → estimer via puissance × durée
+                pwr_w = last_power_w  # passée depuis switch_off (avant coupure)
+                if pwr_w is None:
+                    try:
                         pwr = await get_entity_state(POWER_SENSOR)
                         pwr_w = float(pwr.get("state", 0)) if pwr else 0
-                        kwh = round(pwr_w / 1000 * duration_h, 4)
-                        tv = TARIF_HC if t_mode == "HC" else TARIF_HP
-                        cost = round(kwh * tv, 4)
-                        logger.warning(f"energy_start=NULL: kWh estimé via puissance ({pwr_w}W × {duration_h:.2f}h = {kwh} kWh)")
-                except Exception as ex:
-                    logger.warning(f"Fallback kWh échoué: {ex}")
+                    except Exception:
+                        pwr_w = 0
+                if pwr_w and pwr_w > 0 and duration_h > 0:
+                    kwh = round(pwr_w / 1000 * duration_h, 4)
+                    cost = round(kwh * tv, 4)
+                    reason = "energy_start=NULL" if e_start is None else "kWh=0 (capteur lent)"
+                    logger.warning(f"{reason}: kWh estimé via puissance ({pwr_w}W × {duration_h:.3f}h = {kwh} kWh)")
             await db.execute("""UPDATE sessions SET end_time=?,energy_end=?,
                 energy_kwh=?,cost=?,status='completed' WHERE id=?""",
                 (datetime.now().isoformat(), energy_end, kwh, cost, sid))
@@ -568,8 +582,16 @@ async def switch_on(session=Depends(get_session)):
 @app.post("/api/switch/off")
 async def switch_off(session=Depends(get_session)):
     ha_tok = session.get("ha_access_token") or HA_TOKEN
+    # Lire la puissance AVANT coupure (après coupure le capteur retournera 0W)
+    last_power_w = None
+    try:
+        pwr_state = await get_entity_state(POWER_SENSOR, ha_tok)
+        last_power_w = float(pwr_state.get("state", 0))
+        logger.info(f"Puissance snapshot avant coupure: {last_power_w}W")
+    except Exception as e:
+        logger.warning(f"Impossible de lire la puissance avant coupure: {e}")
     await ha_post("services/switch/turn_off", {"entity_id": SWITCH_ENTITY}, ha_tok)
-    await close_active_session(session["user_id"], ha_tok)
+    await close_active_session(session["user_id"], ha_tok, last_power_w=last_power_w)
     return {"success": True}
 
 @app.get("/api/sessions")
