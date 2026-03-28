@@ -30,3 +30,12 @@
 - Valeurs par défaut robustes pour les entités
 - Switch chargé dynamiquement depuis /api/config
 - Fallback kWh si energy_start = NULL
+
+## [3.2.15] — 2026-03-28
+### Corrigé
+- 🧭 **Navigation PC (fix radical)** :
+  - z-index `.bottom-nav` : 10 → **9999** (garanti au-dessus de toute couche)
+  - `showPage()` : utilisation de `style.display` direct (bypass CSS) en complément de classList
+  - `scrollTo(0,0)` au changement de page pour rendre le changement visible
+  - CSS `.page { display: none !important }` / `.page.active { display: block !important }` pour forcer la priorité
+- 🔄 Service Worker cache bumped to `ev-charger-v9`

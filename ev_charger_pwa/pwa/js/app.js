@@ -778,12 +778,19 @@ window.requestNotifications = requestNotifications;
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Masquer toutes les pages (double méthode : classList + style direct)
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
   document.querySelectorAll('.bottom-btn').forEach(b => b.classList.remove('active'));
-  const page = $(`page-${name}`);
-  if (page) page.classList.add('active');
-  const btn = document.querySelector(`[data-page="${name}"]`);
+  // Afficher la page cible
+  const page = document.getElementById('page-' + name);
+  if (page) { page.classList.add('active'); page.style.display = 'block'; }
+  const btn = document.querySelector('[data-page="' + name + '"]');
   if (btn) btn.classList.add('active');
+  // Remonter en haut de page
+  window.scrollTo(0, 0);
   if (name === 'history') loadSessions();
   if (name === 'stats')   loadStats();
   if (name === 'settings') loadSettings();
