@@ -178,8 +178,21 @@ async function doLogin(e) {
       body: JSON.stringify({ password: pwd, display_name: name })
     });
     if (res.ok) {
-      hideLogin();
-      await init();
+      const data = await res.json();
+      // Mettre à jour l'état utilisateur directement (pas besoin de re-vérifier l'auth)
+      state.user = { display_name: data.display_name || name, ha_role: 'admin' };
+      showApp();
+      // Charger les préférences supplémentaires depuis /api/me
+      try {
+        const me = await api('/api/me');
+        if (me?.theme) applyTheme(me.theme);
+        if (me?.ha_role) state.user.ha_role = me.ha_role;
+        Object.assign(state.user, me);
+      } catch { /* ignore */ }
+      renderUserBadge(state.user);
+      state.currentMonth = nowMonth();
+      showPage('home');
+      startPolling();
     } else {
       if (errDiv) errDiv.style.display = 'block';
       const pwdInput = document.getElementById('login-password');

@@ -1,5 +1,19 @@
 # Changelog — EV Charger PWA
 
+## v3.2.19 — Fix redirection post-authentification
+
+**Bug critique** : après un login réussi, l'application ne se mettait pas à jour automatiquement — il fallait recharger la page manuellement.
+
+**Cause** : `doLogin()` appelait `hideLogin()`, une fonction **non définie** → `ReferenceError` silencieuse catchée par le bloc `try/catch`. Le cookie de session était bien posé côté serveur mais l'UI restait bloquée sur l'écran de login.
+
+**Fix** :
+- Remplacement de `hideLogin(); await init()` par un enchaînement direct utilisant la réponse JSON de `/auth/login`
+- `showApp()` appelé immédiatement après login réussi
+- Chargement des préférences utilisateur (`/api/me`) sans re-vérifier l'auth
+- Badge utilisateur, page home et polling démarrés directement
+
+**Service Worker** : v13
+
 ## [3.2.14] — 2026-03-28
 ### Corrigé
 - 🧭 **Navigation PC** : ajout `onclick="showPage(...)"` inline sur chaque bouton nav + attribut `defer` sur app.js (double fallback navigation)
