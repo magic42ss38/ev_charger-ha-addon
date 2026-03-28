@@ -268,6 +268,57 @@ async def get_user_prefs(user_id: str):
             row = await cur.fetchone()
     return dict(row) if row else {}
 
+
+async def get_valid_ha_token(session: dict) -> str:
+    """Retourne un token HA valide - rafraîchit automatiquement si expiré."""
+    # Priorité 1: token long-lived configuré dans l'addon
+    if HA_TOKEN:
+        return HA_TOKEN
+
+    access_token  = session.get("ha_access_token", "")
+    expires_str   = session.get("ha_token_expires")
+    refresh_token = session.get("ha_refresh_token")
+    session_token = session.get("token")
+
+    # Vérifier si le token expire dans moins de 5 minutes
+    if expires_str and refresh_token and session_token:
+        try:
+            expires_dt = datetime.fromisoformat(expires_str)
+            if datetime.now() >= expires_dt - timedelta(minutes=5):
+                logger.info("Token HA expiré ou presque - tentative de refresh...")
+                try:
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        r = await client.post(
+                            f"{HA_URL}/auth/token",
+                            data={
+                                "grant_type":    "refresh_token",
+                                "refresh_token": refresh_token,
+                                "client_id":     CLIENT_ID,
+                            },
+                            headers={"Content-Type": "application/x-www-form-urlencoded"},
+                        )
+                    if r.status_code == 200:
+                        data         = r.json()
+                        new_token    = data.get("access_token", "")
+                        expires_in   = data.get("expires_in", 1800)
+                        new_expires  = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
+                        async with aiosqlite.connect(DB_PATH) as db:
+                            await db.execute(
+                                "UPDATE user_sessions SET ha_access_token=?, ha_token_expires=? WHERE token=?",
+                                (new_token, new_expires, session_token)
+                            )
+                            await db.commit()
+                        logger.info("Token HA rafraîchi avec succès")
+                        return new_token
+                    else:
+                        logger.warning(f"Refresh token échoué: HTTP {r.status_code}")
+                except Exception as re_err:
+                    logger.warning(f"Erreur refresh token: {re_err}")
+        except Exception:
+            pass
+
+    return access_token or HA_TOKEN
+
 # ─── Lifespan ─────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -470,13 +521,13 @@ async def get_config():
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.15"
+        "pwa_version":   "3.2.16"
     }
 
 @app.get("/api/status")
 async def get_status(session=Depends(get_session)):
     prefs  = await get_user_prefs(session["user_id"])
-    ha_tok = session.get("ha_access_token") or HA_TOKEN
+    ha_tok = await get_valid_ha_token(session)
 
     switch_state = await get_entity_state(SWITCH_ENTITY, ha_tok)
     power_state  = await get_entity_state(POWER_SENSOR,  ha_tok)
@@ -567,7 +618,7 @@ async def get_status(session=Depends(get_session)):
 
 @app.post("/api/switch/on")
 async def switch_on(session=Depends(get_session)):
-    ha_tok = session.get("ha_access_token") or HA_TOKEN
+    ha_tok = await get_valid_ha_token(session)
     prefs  = await get_user_prefs(session["user_id"])
     await close_active_session(session["user_id"], ha_tok)
     await ha_post("services/switch/turn_on", {"entity_id": SWITCH_ENTITY}, ha_tok)
@@ -592,7 +643,7 @@ async def switch_on(session=Depends(get_session)):
 
 @app.post("/api/switch/off")
 async def switch_off(session=Depends(get_session)):
-    ha_tok = session.get("ha_access_token") or HA_TOKEN
+    ha_tok = await get_valid_ha_token(session)
     # Lire la puissance AVANT coupure (après coupure le capteur retournera 0W)
     last_power_w = None
     try:
@@ -607,13 +658,21 @@ async def switch_off(session=Depends(get_session)):
 
 @app.get("/api/sessions")
 async def get_sessions(limit: int = 50, session=Depends(get_session)):
+    is_admin = session.get("ha_role", "user") in ("owner", "admin")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM sessions WHERE user_id=? AND status='completed' ORDER BY id DESC LIMIT ?",
-            (session["user_id"], limit)
-        ) as cur:
-            rows = await cur.fetchall()
+        if is_admin:
+            async with db.execute(
+                "SELECT * FROM sessions WHERE status='completed' ORDER BY id DESC LIMIT ?",
+                (limit,)
+            ) as cur:
+                rows = await cur.fetchall()
+        else:
+            async with db.execute(
+                "SELECT * FROM sessions WHERE user_id=? AND status='completed' ORDER BY id DESC LIMIT ?",
+                (session["user_id"], limit)
+            ) as cur:
+                rows = await cur.fetchall()
     sessions = [dict(r) for r in rows]
     total_kwh  = sum(s["energy_kwh"] or 0 for s in sessions)
     total_cost = sum(s["cost"]       or 0 for s in sessions)
@@ -629,17 +688,24 @@ async def get_sessions(limit: int = 50, session=Depends(get_session)):
 @app.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: int, session=Depends(get_session)):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "DELETE FROM sessions WHERE id=? AND user_id=?",
-            (session_id, session["user_id"]))
+        is_admin = session.get("ha_role", "user") in ("owner", "admin")
+        if is_admin:
+            await db.execute("DELETE FROM sessions WHERE id=?", (session_id,))
+        else:
+            await db.execute("DELETE FROM sessions WHERE id=? AND user_id=?",
+                (session_id, session["user_id"]))
         await db.commit()
     return {"success": True}
 
 @app.patch("/api/sessions/{session_id}/notes")
 async def update_notes(session_id: int, body: SessionNote, session=Depends(get_session)):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE sessions SET notes=? WHERE id=? AND user_id=?",
-            (body.notes, session_id, session["user_id"]))
+        is_admin = session.get("ha_role", "user") in ("owner", "admin")
+        if is_admin:
+            await db.execute("UPDATE sessions SET notes=? WHERE id=?", (body.notes, session_id))
+        else:
+            await db.execute("UPDATE sessions SET notes=? WHERE id=? AND user_id=?",
+                (body.notes, session_id, session["user_id"]))
         await db.commit()
     return {"success": True}
 
@@ -701,9 +767,9 @@ async def get_monthly_stats(session=Depends(get_session)):
                    SUM(cost) as cost,
                    COUNT(*) as count
             FROM sessions
-            WHERE user_id=? AND status='completed'
+            WHERE (status='completed' AND (? OR user_id=?))
             GROUP BY month ORDER BY month DESC LIMIT 12
-        """, (session["user_id"],)) as cur:
+        """, (session.get("ha_role","user") in ("owner","admin"), session["user_id"])) as cur:
             rows = await cur.fetchall()
     return {"monthly": [dict(r) for r in rows]}
 
@@ -734,10 +800,10 @@ async def get_weekly_stats(month: str = None, session=Depends(get_session)):
                 SUM(CASE WHEN tarif_mode='HC' THEN energy_kwh ELSE 0 END) as kwh_hc,
                 SUM(CASE WHEN tarif_mode='HP' THEN energy_kwh ELSE 0 END) as kwh_hp
             FROM sessions
-            WHERE user_id=? AND status='completed'
+            WHERE (status='completed' AND (? OR user_id=?))
               AND strftime('%Y-%m', start_time) = ?
             GROUP BY week_num ORDER BY week_num
-        """, (session["user_id"], month)) as cur:
+        """, (session.get("ha_role","user") in ("owner","admin"), session["user_id"], month)) as cur:
             rows = await cur.fetchall()
 
     # S'assurer d'avoir les 4 semaines même si vides
@@ -771,8 +837,8 @@ async def export_csv(session=Depends(get_session)):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM sessions WHERE user_id=? AND status='completed' ORDER BY start_time DESC",
-            (session["user_id"],)
+            "SELECT * FROM sessions WHERE (status='completed' AND (? OR user_id=?)) ORDER BY start_time DESC",
+            (session.get("ha_role","user") in ("owner","admin"), session["user_id"])
         ) as cur:
             rows = await cur.fetchall()
 
