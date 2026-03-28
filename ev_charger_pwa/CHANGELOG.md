@@ -31,6 +31,24 @@
 - Switch chargé dynamiquement depuis /api/config
 - Fallback kWh si energy_start = NULL
 
+## [3.2.17] - 2026-03-28
+
+### Changed
+- **Authentification remplacée** : suppression du flux OAuth2 HA. La PWA utilise désormais un simple **formulaire mot de passe** configuré dans les options de l'addon (`app_password`).
+- Le backend utilise exclusivement le **Long-Live Token HA** (`ha_token`) pour tous les appels API Home Assistant — plus de gestion d'expiry ni de refresh.
+- Toute personne connaissant le mot de passe reçoit le rôle `admin` (accès à toutes les sessions).
+- Nouveau champ `admin_name` dans la config pour personnaliser le nom d'affichage par défaut.
+
+### Removed
+- Routes `/auth/login` (redirect OAuth) et `/auth/callback` supprimées.
+- Variables `oauth_redirect_uri`, `OAUTH_CLIENT_ID`, `OAUTH_REDIRECT_URI` supprimées.
+- Fonction `get_valid_ha_token()` simplifiée (retourne directement `HA_TOKEN`).
+
+### Technical
+- Nouveau endpoint `POST /auth/login` (JSON `{password, display_name}`).
+- Formulaire HTML avec champ prénom optionnel + mot de passe + message d'erreur animé.
+- Service Worker cache bumped to `ev-charger-v11`.
+
 ## [3.2.16] - 2026-03-28
 
 ### Fixed

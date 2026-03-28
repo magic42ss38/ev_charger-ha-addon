@@ -27,14 +27,19 @@
     </div>
     <div class="login-title">EV <span>CHARGE</span></div>
     <div class="login-sub">Gestion de recharge intelligente</div>
-    <button class="login-btn" onclick="startLogin()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-        <polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
-      </svg>
-      Connexion via Home Assistant
-    </button>
-    <div class="login-note">Authentification sécurisée OAuth2<br>via votre compte Home Assistant</div>
+    <form class="login-form" onsubmit="doLogin(event)">
+      <input type="text" id="login-name" class="login-input" placeholder="Votre prénom (optionnel)" autocomplete="name" />
+      <input type="password" id="login-password" class="login-input" placeholder="Mot de passe" autocomplete="current-password" required />
+      <div id="login-error" class="login-error" style="display:none">Mot de passe incorrect</div>
+      <button type="submit" class="login-btn" id="login-submit-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+          <polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        Se connecter
+      </button>
+    </form>
+    <div class="login-note">Accès sécurisé par mot de passe<br>configuré dans l'addon Home Assistant</div>
   </div>
 </div>
 
@@ -278,7 +283,7 @@
     </div>
 
     <div style="margin-top:20px;text-align:center;font-size:11px;color:var(--text-3)">
-      EV Charger PWA <span id="footer-version">v3.2.10</span> · PropalC · OAuth2 HA
+      EV Charger PWA <span id="footer-version">v3.2.17</span> · PropalC · Long-Live Token
     </div>
   </div>
 

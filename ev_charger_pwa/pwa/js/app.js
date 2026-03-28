@@ -162,8 +162,34 @@ function showApp() {
   $('bottom-nav').style.display = 'flex';
 }
 
-function startLogin() {
-  window.location.href = '/auth/login';
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-submit-btn');
+  const errDiv = document.getElementById('login-error');
+  const name = (document.getElementById('login-name')?.value || '').trim();
+  const pwd  = document.getElementById('login-password').value;
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; }
+  if (errDiv) errDiv.style.display = 'none';
+  try {
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd, display_name: name })
+    });
+    if (res.ok) {
+      hideLogin();
+      await init();
+    } else {
+      if (errDiv) errDiv.style.display = 'block';
+      const pwdInput = document.getElementById('login-password');
+      if (pwdInput) { pwdInput.value = ''; pwdInput.focus(); }
+    }
+  } catch (err) {
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Erreur de connexion'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
 }
 
 async function logout() {

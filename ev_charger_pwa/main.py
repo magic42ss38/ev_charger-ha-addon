@@ -17,7 +17,6 @@ from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
-from urllib.parse import urlencode
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
@@ -37,9 +36,9 @@ HC_END        = os.getenv("HC_END",   "06:00")
 NOTIFICATION_THRESHOLD = float(os.getenv("NOTIFICATION_THRESHOLD", "0.1"))
 DB_PATH       = "/data/sessions.db"
 
-# OAuth2 HA
-OAUTH_CLIENT_ID    = os.getenv("OAUTH_CLIENT_ID", "ev-charger-pwa")
-OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "https://pwa.domotique-nicof73.ovh/auth/callback")
+# Auth mot de passe simple
+APP_PASSWORD       = os.getenv("APP_PASSWORD", "").strip() or "changeme"
+ADMIN_NAME         = os.getenv("ADMIN_NAME", "").strip() or "Admin"
 SESSION_SECRET     = os.getenv("SESSION_SECRET", secrets.token_hex(32))
 SESSION_DURATION_H = 24
 
@@ -143,13 +142,6 @@ def minutes_until_hc(hc_start=HC_START):
     if t >= h_s:
         target += timedelta(days=1)
     return int((target - now).total_seconds() / 60)
-
-def ha_role_label(is_owner: bool, is_admin: bool) -> str:
-    if is_owner:
-        return "owner"
-    if is_admin:
-        return "admin"
-    return "user"
 
 async def ha_get(path: str, token: str = None):
     t = token or HA_TOKEN
@@ -270,54 +262,8 @@ async def get_user_prefs(user_id: str):
 
 
 async def get_valid_ha_token(session: dict) -> str:
-    """Retourne un token HA valide - rafraîchit automatiquement si expiré."""
-    # Priorité 1: token long-lived configuré dans l'addon
-    if HA_TOKEN:
-        return HA_TOKEN
-
-    access_token  = session.get("ha_access_token", "")
-    expires_str   = session.get("ha_token_expires")
-    refresh_token = session.get("ha_refresh_token")
-    session_token = session.get("token")
-
-    # Vérifier si le token expire dans moins de 5 minutes
-    if expires_str and refresh_token and session_token:
-        try:
-            expires_dt = datetime.fromisoformat(expires_str)
-            if datetime.now() >= expires_dt - timedelta(minutes=5):
-                logger.info("Token HA expiré ou presque - tentative de refresh...")
-                try:
-                    async with httpx.AsyncClient(timeout=10) as client:
-                        r = await client.post(
-                            f"{HA_URL}/auth/token",
-                            data={
-                                "grant_type":    "refresh_token",
-                                "refresh_token": refresh_token,
-                                "client_id":     CLIENT_ID,
-                            },
-                            headers={"Content-Type": "application/x-www-form-urlencoded"},
-                        )
-                    if r.status_code == 200:
-                        data         = r.json()
-                        new_token    = data.get("access_token", "")
-                        expires_in   = data.get("expires_in", 1800)
-                        new_expires  = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
-                        async with aiosqlite.connect(DB_PATH) as db:
-                            await db.execute(
-                                "UPDATE user_sessions SET ha_access_token=?, ha_token_expires=? WHERE token=?",
-                                (new_token, new_expires, session_token)
-                            )
-                            await db.commit()
-                        logger.info("Token HA rafraîchi avec succès")
-                        return new_token
-                    else:
-                        logger.warning(f"Refresh token échoué: HTTP {r.status_code}")
-                except Exception as re_err:
-                    logger.warning(f"Erreur refresh token: {re_err}")
-        except Exception:
-            pass
-
-    return access_token or HA_TOKEN
+    """Retourne le token HA long-lived configuré dans l'addon."""
+    return HA_TOKEN
 
 # ─── Lifespan ─────────────────────────────────────────────────────────────────
 @asynccontextmanager
@@ -381,62 +327,18 @@ async def favicon():
     from fastapi.responses import Response
     return Response(status_code=204)
 
-@app.get("/auth/login")
-async def auth_login(request: Request):
-    state = secrets.token_urlsafe(16)
-    params = urlencode({
-        "response_type": "code",
-        "client_id":     OAUTH_CLIENT_ID,
-        "redirect_uri":  OAUTH_REDIRECT_URI,
-        "state":         state,
-    })
-    url = f"{HA_URL}/auth/authorize?{params}"
-    response = RedirectResponse(url)
-    is_secure = request.headers.get("x-forwarded-proto", "http") == "https"
-    response.set_cookie("oauth_state", state, max_age=300, httponly=True, samesite="lax", secure=is_secure)
-    return response
+class LoginRequest(BaseModel):
+    password: str
+    display_name: str = ""
 
-@app.get("/auth/callback")
-async def auth_callback(code: str, state: str, request: Request):
-    stored_state = request.cookies.get("oauth_state")
-    if stored_state and stored_state != state:
-        raise HTTPException(status_code=400, detail="State OAuth invalide")
+@app.post("/auth/login")
+async def auth_login(body: LoginRequest, request: Request):
+    """Authentification par mot de passe configuré dans l\'addon."""
+    if body.password != APP_PASSWORD:
+        raise HTTPException(status_code=401, detail="Mot de passe incorrect")
 
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.post(f"{HA_URL}/auth/token", data={
-                "grant_type": "authorization_code",
-                "code": code,
-                "client_id": OAUTH_CLIENT_ID,
-                "redirect_uri": OAUTH_REDIRECT_URI,
-            }, headers={"Content-Type": "application/x-www-form-urlencoded"})
-            r.raise_for_status()
-            token_data = r.json()
-    except Exception as e:
-        logger.error(f"OAuth token exchange error: {e}")
-        raise HTTPException(status_code=400, detail=f"Erreur OAuth: {e}")
-
-    ha_access_token  = token_data.get("access_token")
-    ha_refresh_token = token_data.get("refresh_token")
-    expires_in       = token_data.get("expires_in", 1800)
-    ha_token_expires = (datetime.now() + timedelta(seconds=expires_in)).isoformat()
-
-    # Récupérer le profil + rôle utilisateur HA
-    user_id = user_name = user_display = None
-    ha_role = "user"
-    try:
-        profile = await ha_get("auth/current_user", ha_access_token)
-        user_id      = profile.get("id", "unknown")
-        user_name    = profile.get("username", "user")
-        user_display = profile.get("name") or user_name
-        ha_role      = ha_role_label(
-            profile.get("is_owner", False),
-            profile.get("is_admin", False)
-        )
-    except Exception:
-        user_id      = hashlib.md5(ha_access_token.encode()).hexdigest()[:8]
-        user_name    = "user"
-        user_display = "Utilisateur"
+    display = body.display_name.strip() or ADMIN_NAME
+    user_id = hashlib.md5(display.lower().encode()).hexdigest()[:8]
 
     session_token = secrets.token_urlsafe(32)
     async with aiosqlite.connect(DB_PATH) as db:
@@ -445,19 +347,18 @@ async def auth_callback(code: str, state: str, request: Request):
             (token, user_id, user_name, user_display_name, ha_role,
              ha_access_token, ha_refresh_token, ha_token_expires, created_at, last_seen)
             VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (session_token, user_id, user_name, user_display, ha_role,
-             ha_access_token, ha_refresh_token, ha_token_expires,
+            (session_token, user_id, display, display, "admin",
+             "", "", "",
              datetime.now().isoformat(), datetime.now().isoformat()))
         await db.commit()
 
-    logger.info(f"Connexion: {user_display} ({user_id}) rôle={ha_role}")
+    logger.info(f"Connexion: {display} ({user_id})")
 
-    response = RedirectResponse(url="/")
+    response = JSONResponse({"success": True, "display_name": display})
     is_secure = request.headers.get("x-forwarded-proto", "http") == "https"
     response.set_cookie("ev_session", session_token,
         max_age=SESSION_DURATION_H * 3600,
         httponly=True, samesite="lax", secure=is_secure)
-    response.delete_cookie("oauth_state")
     return response
 
 @app.post("/auth/logout")
@@ -521,7 +422,7 @@ async def get_config():
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.16"
+        "pwa_version":   "3.2.17"
     }
 
 @app.get("/api/status")
