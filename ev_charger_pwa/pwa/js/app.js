@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const state = {
   user: null,
   status: null,
+  config: null,  // cache de /api/config (entités HA configurées)
   sessions: [],
   stats: {},
   power_history: [],
@@ -368,28 +369,24 @@ function renderHome(data) {
   $('switch-label').textContent = isOn ? 'EN CHARGE' : 'ARRÊTÉ';
   $('power-card').className = `power-card ${isOn ? 'charging' : ''}`;
 
-  // Fallback : afficher switch entity depuis status si loadSettings a échoué
-  const swEl = $('display-switch-entity');
-  if (swEl && data.switch?.entity_id && swEl.textContent === '—') {
-    swEl.textContent = data.switch.entity_id;
-  }
-
   // Session live
   const session = data.session_active;
   const liveDiv = $('session-live');
-  if (session && isOn) {
+  if (isOn) {
     liveDiv.style.display = 'block';
     const kwh  = data.session_kwh ?? 0;
+    // Utiliser session_cost calculé côté serveur (tarif correct au démarrage)
     const cost = data.session_cost ?? (kwh * tarif);
     $('live-kwh').textContent      = fmt(kwh, 3);
     $('live-cost').textContent     = fmtEur(cost);
-    $('live-duration').textContent = fmtDuration(session.start_time, null);
+    const startTime = session ? session.start_time : null;
+    $('live-duration').textContent = startTime ? fmtDuration(startTime, null) : '—';
     $('live-tarif').textContent    = `${mode} · ${fmt(tarif, 4)}€`;
     $('live-mode').textContent     = mode;
     $('live-mode').className       = `session-mode ${mode}`;
     $('live-kwh-mini').textContent  = fmt(kwh, 3);
     $('live-cost-mini').textContent = fmtEur(cost);
-    $('live-duration-mini').textContent = fmtDuration(session.start_time, null);
+    $('live-duration-mini').textContent = startTime ? fmtDuration(startTime, null) : '—';
   } else {
     liveDiv.style.display = 'none';
     $('live-kwh-mini').textContent = '—';
@@ -701,22 +698,26 @@ async function toggleSwitch() {
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-async function loadSettings() {
-  // Afficher les vraies entités configurées
+async function loadConfig() {
+  // /api/config ne nécessite pas d'auth — fetch direct pour éviter la redirection login
   try {
-    const cfg = await api('/api/config');
-    console.log('[config] Réponse API:', cfg);
-    if (cfg) {
-      const sw = $('display-switch-entity');
-      const ps = $('display-power-sensor');
-      const es = $('display-energy-sensor');
-      if (sw) sw.textContent = cfg.switch_entity || '(non configuré)';
-      if (ps) ps.textContent = cfg.power_sensor  || '(non configuré)';
-      if (es) es.textContent = cfg.energy_sensor || '(non configuré)';
-      const fv = $('footer-version');
-      if (fv && cfg.pwa_version) fv.textContent = 'v' + cfg.pwa_version;
-    }
+    const res = await fetch('/api/config', { credentials: 'include' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const cfg = await res.json();
+    state.config = cfg; // mise en cache
+    const sw = $('display-switch-entity');
+    const ps = $('display-power-sensor');
+    const es = $('display-energy-sensor');
+    if (sw) sw.textContent = cfg.switch_entity || '(non configuré)';
+    if (ps) ps.textContent = cfg.power_sensor  || '(non configuré)';
+    if (es) es.textContent = cfg.energy_sensor || '(non configuré)';
+    const fv = $('footer-version');
+    if (fv && cfg.pwa_version) fv.textContent = 'v' + cfg.pwa_version;
   } catch(e) { console.warn('[config] ERREUR:', e); }
+}
+
+async function loadSettings() {
+  await loadConfig();
   if (!state.user) return;
   renderUserBadge(state.user);
   try {
@@ -833,6 +834,9 @@ async function init() {
 
   // Initialiser le mois courant pour les stats
   state.currentMonth = nowMonth();
+
+  // Charger la config des entités dès le démarrage (pas besoin d'aller dans Réglages)
+  loadConfig();
 
   const goto = sessionStorage.getItem('ev_goto');
   if (goto) { sessionStorage.removeItem('ev_goto'); showPage(goto); }

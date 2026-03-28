@@ -221,7 +221,7 @@ Puis redémarrer HA.
 ### Erreur 500 sur /api/status
 
 Migration DB manquante. Vérifier les logs de l'addon :  
-→ Si `no such column: user_id` → mettre à jour vers **v3.2.10+**
+→ Si `no such column: user_id` → mettre à jour vers **v3.2.9+**
 
 ### Service Worker qui cache les anciennes versions
 
@@ -262,5 +262,5 @@ Voir le fichier [CHANGELOG.md](./CHANGELOG.md) pour l'historique complet des ver
 ### kWh = 0.000 ou coût = 0.00€ pendant une session
 
 - Vérifie que les entités dans la config HA correspondent exactement aux noms dans **Developer Tools → States**
-- Depuis v3.2.10 : si le sensor énergie est indispo au démarrage, un fallback `puissance × durée` est utilisé
+- Depuis v3.2.9 : si le sensor énergie est indispo au démarrage, un fallback `puissance × durée` est utilisé
 
