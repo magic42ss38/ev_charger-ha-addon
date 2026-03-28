@@ -23,22 +23,40 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-HA_URL        = os.getenv("HA_URL", "https://ha.domotique-nicof73.ovh")
-HA_TOKEN      = os.getenv("HA_TOKEN", "")
-# Fix v3.2.9 : si l'env var est vide (options.json non configuré), on utilise le bon défaut
-SWITCH_ENTITY = os.getenv("SWITCH_ENTITY", "").strip() or "switch.prise_voiture"
-POWER_SENSOR  = os.getenv("POWER_SENSOR",  "").strip() or "sensor.prise_voiture_puissance_2"
-ENERGY_SENSOR = os.getenv("ENERGY_SENSOR", "").strip() or "sensor.prise_voiture_energy"
-TARIF_HP      = float(os.getenv("TARIF_HP", "0.2516"))
-TARIF_HC      = float(os.getenv("TARIF_HC", "0.1654"))
-HC_START      = os.getenv("HC_START", "22:00")
-HC_END        = os.getenv("HC_END",   "06:00")
-NOTIFICATION_THRESHOLD = float(os.getenv("NOTIFICATION_THRESHOLD", "0.1"))
+# ── Lecture options depuis /data/options.json (HA addon) avec fallback os.getenv ──
+def _load_options() -> dict:
+    """Lit /data/options.json si disponible, sinon retourne {}."""
+    try:
+        import json as _json
+        with open("/data/options.json", "r") as _f:
+            return _json.load(_f)
+    except Exception:
+        return {}
+
+_OPT = _load_options()
+
+def _opt(key_json: str, key_env: str, default: str = "") -> str:
+    """Priorité : options.json → env var → default."""
+    v = _OPT.get(key_json)
+    if v is not None and str(v).strip():
+        return str(v).strip()
+    return os.getenv(key_env, "").strip() or default
+
+HA_URL        = _opt("ha_url",        "HA_URL",        "http://homeassistant:8123")
+HA_TOKEN      = _opt("ha_token",      "HA_TOKEN",      "")
+SWITCH_ENTITY = _opt("switch_entity", "SWITCH_ENTITY", "switch.prise_voiture")
+POWER_SENSOR  = _opt("power_sensor",  "POWER_SENSOR",  "sensor.prise_voiture_puissance_2")
+ENERGY_SENSOR = _opt("energy_sensor", "ENERGY_SENSOR", "sensor.prise_voiture_energy")
+TARIF_HP      = float(_opt("tarif_hp",   "TARIF_HP",   "0.2516"))
+TARIF_HC      = float(_opt("tarif_hc",   "TARIF_HC",   "0.1654"))
+HC_START      = _opt("hc_start",      "HC_START",      "22:00")
+HC_END        = _opt("hc_end",        "HC_END",        "06:00")
+NOTIFICATION_THRESHOLD = float(_opt("notification_threshold_kw", "NOTIFICATION_THRESHOLD", "0.1"))
 DB_PATH       = "/data/sessions.db"
 
 # Auth mot de passe simple
-APP_PASSWORD       = os.getenv("APP_PASSWORD", "").strip() or "changeme"
-ADMIN_NAME         = os.getenv("ADMIN_NAME", "").strip() or "Admin"
+APP_PASSWORD       = _opt("app_password",  "APP_PASSWORD",  "changeme")
+ADMIN_NAME         = _opt("admin_name",    "ADMIN_NAME",    "Admin")
 SESSION_SECRET     = os.getenv("SESSION_SECRET", secrets.token_hex(32))
 SESSION_DURATION_H = 24
 

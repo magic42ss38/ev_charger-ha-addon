@@ -31,6 +31,19 @@
 - Switch chargé dynamiquement depuis /api/config
 - Fallback kWh si energy_start = NULL
 
+## [3.2.18] - 2026-03-28
+
+### Fixed — Critique
+- **Token HA ignoré → 401 Unauthorized** : `main.py` lisait les options via `os.getenv()` mais HA addon
+  écrit dans `/data/options.json` sans injecter de variables d'environnement.
+  Fix : nouvelle fonction `_load_options()` qui lit `/data/options.json` en priorité,
+  avec fallback `os.getenv()` pour la compatibilité dev local.
+  Concerne : `ha_token`, `ha_url`, `switch_entity`, `power_sensor`, `energy_sensor`,
+  `tarif_hp`, `tarif_hc`, `hc_start`, `hc_end`, `app_password`, `admin_name`.
+
+### Technical
+- Service Worker cache bumped to `ev-charger-v12`.
+
 ## [3.2.17] - 2026-03-28
 
 ### Changed
