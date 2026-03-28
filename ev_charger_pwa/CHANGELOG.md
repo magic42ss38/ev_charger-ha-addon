@@ -1,38 +1,32 @@
 # Changelog — EV Charger PWA
 
+## [3.2.13] — 2026-03-28
+### Ajouté
+- 📁 Fichiers racine complets : `README.md`, `repository.json`, `configuration_NGINX.conf`, `configuration_yaml.conf`
+- 🔢 Cache Service Worker `ev-charger-v7`
+
+## [3.2.12] — 2026-03-28
+### Corrigé
+- 🧭 **Navigation cassée** : `.bottom-nav` masqué par le contenu de la page (z-index: 10 ajouté)
+- 📊 **kWh/Coût live = 0** : fallback `puissance × durée` quand le capteur énergie n'a pas encore bougé
+
 ## [3.2.11] — 2026-03-28
 ### Corrigé
-- 🐛 **kWh/Coût = 0 après session** : Cause racine identifiée — la puissance était lue *après* avoir coupé le switch (capteur retourne 0W). Désormais, un snapshot de la puissance est pris **avant** la coupure et utilisé comme fallback
-- 🐛 **Capteur énergie trop lent** : Si `energy_end == energy_start` (capteur pas encore mis à jour pour une courte session), le fallback `puissance × durée` est automatiquement utilisé
-- 🐛 **Double fallback** : Les deux conditions (energy_start=NULL **et** kWh=0) déclenchent maintenant le calcul par puissance × durée
-- 🔄 Cache Service Worker : `ev-charger-v6`
+- 🔌 **Coût final = 0** : snapshot puissance pris **avant** coupure du switch
+- 🔄 **Auto-session** : création automatique si switch ON sans session en DB
 
 ## [3.2.10] — 2026-03-28
 ### Corrigé
-- 🔄 **Auto-création de session** : Si le switch est ON dans HA mais sans session en DB (switch activé hors PWA), `/api/status` crée automatiquement la session
-- 🔧 **Switch entity dans réglages** : Protection null-safe sur `cfg` + fallback depuis `/api/status` si le champ reste `—`
-- 💰 **Coût calculé côté serveur** : `session_cost` depuis le backend avec les bons tarifs utilisateur
-- 🔄 Cache Service Worker : `ev-charger-v5`
+- 🔄 Auto-création de session si switch ON sans session en DB
+- ⚙️ Switch entity `—` dans réglages : null-guard + fallback depuis /api/status
 
 ## [3.2.9] — 2026-03-27
 ### Corrigé
-- 🔧 Defaults robustes pour les entités (strip + fallback si chaîne vide depuis /data/options.json)
-- 🔧 Calcul kWh fallback via puissance × durée si energy_start=NULL
-- 🔧 Switch entity chargé dynamiquement depuis /api/config
+- Valeurs par défaut robustes pour les entités
+- Switch chargé dynamiquement depuis `/api/config`
+- Fallback kWh si `energy_start = NULL`
 
 ## [3.2.8] — 2026-03-26
 ### Corrigé
-- 🔄 Cache SW bumped à ev-charger-v4
-- 🔓 /api/config sans auth requise
-- 📝 Logging étendu pour debugging energy_start
-
-## [3.2.7] — 2026-03-25
-### Corrigé
-- 🔧 Entités hardcodées dans l'UI settings remplacées par chargement dynamique
-- 💰 Calcul coût session côté serveur
-- ❌ Bouton annuler fonctionnel
-
-## [3.2.6] — 2026-03-24
-### Corrigé
-- 🔧 Defaults capteurs corrigés
-- 📱 Manifest PWA corrigé
+- Cache Service Worker `ev-charger-v4`
+- `/api/config` sans authentification requise

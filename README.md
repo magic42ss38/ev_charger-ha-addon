@@ -240,7 +240,7 @@ F12 → **Application → Storage → Clear site data** ✓
 
 Voir le fichier [CHANGELOG.md](./CHANGELOG.md) pour l'historique complet des versions.
 
-**Version actuelle : 3.2.9**
+**Version actuelle : 3.2.13**13**
 
 ---
 
