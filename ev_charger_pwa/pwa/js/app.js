@@ -368,13 +368,19 @@ function renderHome(data) {
   $('switch-label').textContent = isOn ? 'EN CHARGE' : 'ARRÊTÉ';
   $('power-card').className = `power-card ${isOn ? 'charging' : ''}`;
 
+  // Fallback : afficher switch entity depuis status si loadSettings a échoué
+  const swEl = $('display-switch-entity');
+  if (swEl && data.switch?.entity_id && swEl.textContent === '—') {
+    swEl.textContent = data.switch.entity_id;
+  }
+
   // Session live
   const session = data.session_active;
   const liveDiv = $('session-live');
   if (session && isOn) {
     liveDiv.style.display = 'block';
     const kwh  = data.session_kwh ?? 0;
-    const cost = kwh * tarif;
+    const cost = data.session_cost ?? (kwh * tarif);
     $('live-kwh').textContent      = fmt(kwh, 3);
     $('live-cost').textContent     = fmtEur(cost);
     $('live-duration').textContent = fmtDuration(session.start_time, null);
@@ -700,14 +706,16 @@ async function loadSettings() {
   try {
     const cfg = await api('/api/config');
     console.log('[config] Réponse API:', cfg);
-    const sw = $('display-switch-entity');
-    const ps = $('display-power-sensor');
-    const es = $('display-energy-sensor');
-    if (sw) sw.textContent = cfg.switch_entity || '(non configuré)';
-    if (ps) ps.textContent = cfg.power_sensor  || '(non configuré)';
-    if (es) es.textContent = cfg.energy_sensor || '(non configuré)';
-    const fv = $('footer-version');
-    if (fv && cfg.pwa_version) fv.textContent = 'v' + cfg.pwa_version;
+    if (cfg) {
+      const sw = $('display-switch-entity');
+      const ps = $('display-power-sensor');
+      const es = $('display-energy-sensor');
+      if (sw) sw.textContent = cfg.switch_entity || '(non configuré)';
+      if (ps) ps.textContent = cfg.power_sensor  || '(non configuré)';
+      if (es) es.textContent = cfg.energy_sensor || '(non configuré)';
+      const fv = $('footer-version');
+      if (fv && cfg.pwa_version) fv.textContent = 'v' + cfg.pwa_version;
+    }
   } catch(e) { console.warn('[config] ERREUR:', e); }
   if (!state.user) return;
   renderUserBadge(state.user);

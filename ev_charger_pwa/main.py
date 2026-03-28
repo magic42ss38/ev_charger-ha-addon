@@ -456,7 +456,7 @@ async def get_config():
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.9"
+        "pwa_version":   "3.2.10"
     }
 
 @app.get("/api/status")
@@ -491,6 +491,29 @@ async def get_status(session=Depends(get_session)):
             row = await cur.fetchone()
         if row:
             active_session = dict(row)
+        elif switch_state.get("state") == "on":
+            # Auto-créer une session si le switch est ON mais aucune session en DB
+            # (cas : switch activé depuis HA, ou session perdue)
+            try:
+                e_val = float(energy_state.get("state", 0))
+                e_start = e_val if e_val > 0 else None
+            except (ValueError, TypeError):
+                e_start = None
+            logger.info(f"Auto-création session (switch=on, pas de session active) energy_start={e_start}")
+            await db.execute(
+                "INSERT INTO sessions (user_id,start_time,energy_start,tarif_mode,status) VALUES (?,?,?,?,'active')",
+                (session["user_id"], datetime.now().isoformat(), e_start, mode)
+            )
+            await db.commit()
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM sessions WHERE status='active' AND user_id=? ORDER BY id DESC LIMIT 1",
+                (session["user_id"],)
+            ) as cur:
+                row2 = await cur.fetchone()
+            if row2:
+                active_session = dict(row2)
+        if active_session:
             try:
                 current_energy = float(energy_state.get("state", 0))
                 if active_session.get("energy_start") is not None:
@@ -774,7 +797,7 @@ async def start_watchdog():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": "3.0", "timestamp": datetime.now().isoformat()}
+    return {"status": "healthy", "version": "3.2.10", "timestamp": datetime.now().isoformat()}
 
 # ─── Static PWA ───────────────────────────────────────────────────────────────
 app.mount("/", StaticFiles(directory="/app/pwa", html=True), name="pwa")
