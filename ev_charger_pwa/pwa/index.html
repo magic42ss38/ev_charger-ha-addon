@@ -285,26 +285,26 @@
 </div><!-- #app -->
 
 <nav class="bottom-nav" id="bottom-nav" style="display:none">
-  <button class="bottom-btn active" data-page="home">
+  <button class="bottom-btn active" data-page="home" onclick="showPage('home')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
     <span>Charge</span>
   </button>
-  <button class="bottom-btn" data-page="history">
+  <button class="bottom-btn" data-page="history" onclick="showPage('history')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Historique</span>
   </button>
-  <button class="bottom-btn" data-page="stats">
+  <button class="bottom-btn" data-page="stats" onclick="showPage('stats')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
     <span>Stats</span>
   </button>
-  <button class="bottom-btn" data-page="settings">
+  <button class="bottom-btn" data-page="settings" onclick="showPage('settings')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
     <span>Réglages</span>
   </button>
 </nav>
 
 <div id="toast" class="toast"></div>
-<script src="/js/app.js"></script>
+<script src="/js/app.js" defer></script>
 
 <!-- Modal iOS install instructions -->
 <div id="ios-install-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeIOSModal()">

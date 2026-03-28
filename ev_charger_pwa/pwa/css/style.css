@@ -373,6 +373,7 @@ body::before {
 .bottom-btn {
   flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column;
   align-items: center; gap: 3px; padding: 6px; color: var(--text-3); transition: color .2s; font-family: var(--font);
+  pointer-events: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .bottom-btn.active { color: var(--cyan); }
 .bottom-btn svg { width: 20px; height: 20px; }

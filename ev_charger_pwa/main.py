@@ -470,7 +470,7 @@ async def get_config():
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.13"
+        "pwa_version":   "3.2.14"
     }
 
 @app.get("/api/status")
@@ -830,7 +830,7 @@ async def start_watchdog():
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": "3.2.13", "timestamp": datetime.now().isoformat()}
+    return {"status": "healthy", "version": "3.2.14", "timestamp": datetime.now().isoformat()}
 
 # ─── Static PWA ───────────────────────────────────────────────────────────────
 app.mount("/", StaticFiles(directory="/app/pwa", html=True), name="pwa")
