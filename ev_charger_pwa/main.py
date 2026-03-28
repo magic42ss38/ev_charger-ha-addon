@@ -440,7 +440,7 @@ async def get_config():
         "power_sensor":  POWER_SENSOR,
         "energy_sensor": ENERGY_SENSOR,
         "switch_entity": SWITCH_ENTITY,
-        "pwa_version":   "3.2.17"
+        "pwa_version":   "3.2.20"
     }
 
 @app.get("/api/status")

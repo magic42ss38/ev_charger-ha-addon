@@ -1,5 +1,19 @@
 # Changelog — EV Charger PWA
 
+## v3.2.20 — Affichage version sur toutes les pages
+
+**Fonctionnalité** : barre de version discrète visible sur toutes les pages de l'application.
+
+**Détails** :
+- Pill fixe `v3.2.20 · SW v14` affiché au-dessus de la navigation (toutes pages)
+- Police monospace, opacité réduite, `backdrop-filter: blur` pour s'intégrer aux deux thèmes
+- Se masque automatiquement sur l'écran de login
+- Constantes `APP_VERSION` et `SW_VERSION` centralisées en haut de `app.js`
+- `pwa_version` corrigé dans `main.py` (était resté sur `3.2.17`)
+
+**Service Worker** : v14
+
+
 ## v3.2.19 — Fix redirection post-authentification
 
 **Bug critique** : après un login réussi, l'application ne se mettait pas à jour automatiquement — il fallait recharger la page manuellement.

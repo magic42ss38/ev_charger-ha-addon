@@ -1,5 +1,8 @@
 /* EV Charger PWA v3 — PropalC : OAuth2 HA + Sessions + Stats hebdo + Rôle HA */
 
+const APP_VERSION = "3.2.20";
+const SW_VERSION  = "v14";
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PWA INSTALL — gestion du prompt d'installation natif + iOS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -153,6 +156,7 @@ function showLoginScreen() {
   $('login-screen').style.display = 'flex';
   $('app').style.display = 'none';
   $('bottom-nav').style.display = 'none';
+  hideVersionBar();
   if (state.poll_interval) { clearInterval(state.poll_interval); state.poll_interval = null; }
 }
 
@@ -160,6 +164,24 @@ function showApp() {
   $('login-screen').style.display = 'none';
   $('app').style.display = 'block';
   $('bottom-nav').style.display = 'flex';
+  // Afficher la barre de version sur toutes les pages
+  const vbar = $('version-bar');
+  if (vbar) {
+    // Récupérer la version SW active depuis le service worker
+    let swVer = SW_VERSION;
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const swUrl = navigator.serviceWorker.controller.scriptURL || '';
+      const m = swUrl.match(/sw\.js/);
+      // On utilise la constante définie dans sw.js via cache name
+    }
+    vbar.textContent = `v${APP_VERSION} · SW ${swVer}`;
+    vbar.style.display = 'block';
+  }
+}
+
+function hideVersionBar() {
+  const vbar = $('version-bar');
+  if (vbar) vbar.style.display = 'none';
 }
 
 async function doLogin(e) {
